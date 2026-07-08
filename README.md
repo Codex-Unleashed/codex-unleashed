@@ -30,10 +30,8 @@ After extracting the archive, run the included `codex` binary the same way you w
 
 - `codex-fixes` maintains a small, auditable patch layer on top of upstream [`openai/codex`](https://github.com/openai/codex).
 - Important user-facing issues can take months to be fixed upstream, even when they are time-sensitive for real users and teams.
-- This distribution exists to bridge that gap by shipping targeted fixes quickly for issues that matter to users, then removing those patches once the fixes land upstream.
-- This repository is open source under the same license as upstream Codex. At the time of writing, upstream `openai/codex` is licensed under Apache License 2.0.
-- Upstream issues do not always get fixed on your timeline.
-- This repository carries small, auditable Codex fixes until upstream absorbs them.
+- This project bridges that gap by shipping small, targeted fixes for issues that matter to users now, not months later.
+- Patches stay public, auditable, and temporary: they are carried here until the equivalent fix lands upstream, then removed.
 - Buyers can get early access to completed patched builds before those fixes roll into the public release.
 
 ## What To Expect
