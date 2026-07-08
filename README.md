@@ -4,9 +4,46 @@ A community-maintained patch queue and patched binary distribution for OpenAI Co
 
 > Warning: Unofficial, not affiliated with OpenAI.
 
+[![Releases](https://img.shields.io/github/v/release/cowwoc/codex-fixes?display_name=tag)](https://github.com/cowwoc/codex-fixes/releases)
+[![License](https://img.shields.io/github/license/cowwoc/codex-fixes)](https://github.com/cowwoc/codex-fixes/blob/main/LICENSE)
+
+```text
+openai/codex release
+        |
+        v
+   codex-fixes patch queue
+        |
+        v
+private early-access build
+        |
+        v
+ public patched release
+```
+
 `codex-fixes` maintains a small, auditable patch layer on top of upstream [`openai/codex`](https://github.com/openai/codex). The intent is to publish temporary bug-fix builds quickly, then remove patches once the fixes land upstream.
 
 This repository is open source under the same license as upstream Codex. At the time of writing, upstream `openai/codex` is licensed under Apache License 2.0.
+
+## Quickstart
+
+### Download a public patched release
+
+Open the latest [GitHub Release](https://github.com/cowwoc/codex-fixes/releases/latest) and download the archive for your platform.
+
+The exact filenames follow the published release artifacts for the current upstream build targets. In practice, pick the artifact matching your OS and architecture.
+
+After extracting the archive, run the included `codex` binary the same way you would run upstream Codex.
+
+### Verify what you downloaded
+
+Every release includes:
+
+- upstream Codex version and commit SHA
+- applied patch list
+- build date
+- checksums
+
+Check the release notes and checksums before trusting a binary.
 
 ## Why This Exists
 
