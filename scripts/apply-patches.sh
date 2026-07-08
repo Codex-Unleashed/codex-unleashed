@@ -35,9 +35,10 @@ cleanup_on_error() {
 
 trap cleanup_on_error ERR
 
-shopt -s nullglob
-mapfile -t patches < <(find "${patch_dir}" -type f -name '*.patch' | sort)
-shopt -u nullglob
+patches=()
+while IFS= read -r patch_file; do
+  patches+=("${patch_file}")
+done < <(find "${patch_dir}" -type f -name '*.patch' | sort)
 
 if [[ ${#patches[@]} -eq 0 ]]; then
   echo "No patch files found in ${patch_dir}; nothing to apply."

@@ -105,6 +105,7 @@ configure_rusty_v8_overrides() {
   local release_tag=""
   local base_url=""
   local binding_dir=""
+  local archive_name=""
   local archive_path=""
   local binding_path=""
   local checksums_path=""
@@ -123,12 +124,17 @@ configure_rusty_v8_overrides() {
   release_tag="rusty-v8-v${version}"
   base_url="https://github.com/openai/codex/releases/download/${release_tag}"
   binding_dir="${TMPDIR:-/tmp}/rusty_v8/${target}"
-  archive_path="${binding_dir}/librusty_v8_release_${target}.a.gz"
+  if [[ "${target}" == *windows* ]]; then
+    archive_name="rusty_v8_release_${target}.lib.gz"
+  else
+    archive_name="librusty_v8_release_${target}.a.gz"
+  fi
+  archive_path="${binding_dir}/${archive_name}"
   binding_path="${binding_dir}/src_binding_release_${target}.rs"
   checksums_path="${binding_dir}/rusty_v8_release_${target}.sha256"
 
   mkdir -p "${binding_dir}"
-  curl -fsSL "${base_url}/librusty_v8_release_${target}.a.gz" -o "${archive_path}"
+  curl -fsSL "${base_url}/${archive_name}" -o "${archive_path}"
   curl -fsSL "${base_url}/src_binding_release_${target}.rs" -o "${binding_path}"
   curl -fsSL "${base_url}/rusty_v8_release_${target}.sha256" -o "${checksums_path}"
 
