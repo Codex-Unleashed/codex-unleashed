@@ -9,7 +9,6 @@ This repository does not accept pull requests.
 ## What To Do Instead
 
 - If you need your own changes, fork this repository privately or publicly and maintain your own patch queue.
-- If you want a bug fixed here, open a funded issue or a quote request.
 - If you want a bug fixed here, open an issue funding request or a quote request.
 - If you need private or commercial engineering work, contact the maintainer for a quote.
 

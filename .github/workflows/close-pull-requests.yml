@@ -27,10 +27,14 @@ jobs:
             const body = [
               "Thanks for the contribution.",
               "",
-              "This repository does not accept pull requests because it is intentionally maintained as a narrow patch queue rather than a general fork.",
+              "This repository does not accept pull requests.",
+              "",
+              "Reviewing pull requests costs maintainer time and money, and this repository only allocates maintainer effort to funded issue work, quote-approved work, or separately contracted professional services.",
+              "",
+              "This repository is intentionally maintained as a narrow patch queue rather than a general fork.",
               "",
               "If you want to carry your own changes, please maintain your own fork privately or publicly.",
-              "If you want a fix included here, open a funded issue or contact the maintainer for a quote.",
+              "If you want a fix included here, open an issue funding request or contact the maintainer for a quote.",
             ].join("\n");
 
             await github.rest.issues.createComment({
