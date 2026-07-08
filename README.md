@@ -9,14 +9,6 @@ A community-maintained patch queue and patched binary distribution for OpenAI Co
 [![Public fixes](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/cowwoc/codex-fixes/main/docs/badges/public-fixes.json)](https://github.com/cowwoc/codex-fixes/tree/main/patches)
 [![Early-Access fixes](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/cowwoc/codex-fixes/main/docs/badges/early-access-fixes.json)](https://github.com/cowwoc/codex-fixes/issues)
 
-```text
-Fix count comparison
-
-Upstream release        = upstream fixes only
-Public patched release = upstream + public patch queue
-Early-access build     = upstream + public patch queue + private unreleased fixes
-```
-
 ## Quickstart
 
 ### Download a public patched release
@@ -26,20 +18,6 @@ Open the latest [GitHub Release](https://github.com/cowwoc/codex-fixes/releases/
 The exact filenames follow the published release artifacts for the current upstream build targets. In practice, pick the artifact matching your OS and architecture.
 
 After extracting the archive, run the included `codex` binary the same way you would run upstream Codex.
-
-## Release Comparison
-
-```text
-                     Additional fixes relative to upstream
-
-Upstream release     [                    0                    ]
-Public release       [         public patch queue             ]
-Early access         [ public patch queue + private fixes     ]
-```
-
-- `Upstream release`: only fixes already shipped by `openai/codex`
-- `Public release`: upstream plus every fix already published in this repository
-- `Early access`: public release plus any completed unreleased fixes still inside the 30-day early-access window
 
 ## Why This Exists
 
