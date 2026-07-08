@@ -23,15 +23,18 @@ This repository is open source under the same license as upstream Codex. At the 
 
 Developers who want to contribute code should maintain their own fork, privately or publicly, and carry their own patches.
 
-## How Bounties Work
+## How Issue Funding Works
 
-Public bug-fix work is funded through Polar.sh because it supports open-source issue funding and bounties.
+Public bug-fix work is funded through Polar.sh using issue-specific funding links.
 
-- Customers can fund an issue through Polar.sh using a dedicated product or checkout link for that issue.
-- Bounty payment funds engineering work, not exclusive ownership of the fix.
+- Each issue may have a dedicated Polar.sh product or checkout link.
+- Companies or individuals may use pay-what-you-want pricing to add money against the same issue.
+- Payments against the same issue are aggregated by the maintainer.
+- Once the necessary funding threshold is reached, the maintainer may fix the issue and collect all payments against that issue.
+- Funding pays for engineering work, not exclusive ownership of the fix.
 - All funded fixes are released publicly in this repository.
-- If a fix is infeasible, out of scope, or cannot be completed, the bounty may be refunded.
-- The maintainer only replies to issues that have an active bounty, a serious funding inquiry, or a professional-services request.
+- If a fix is infeasible, out of scope, or cannot be completed, the issue funding may be refunded.
+- The maintainer only replies to issues that have active issue funding, a serious funding inquiry, or a professional-services request.
 
 Polar: `TODO_POLAR_URL`
 
@@ -43,19 +46,19 @@ Use this path when you need private triage, custom patching, support terms, SLA 
 
 ## How To Fund An Issue
 
-1. Open a funded bug or quote-request issue using the provided template.
-2. Add the Polar.sh funding link or explain the funding status.
-3. Wait for maintainer review if the issue is funded, quote-related, or otherwise maintainer-approved.
+1. Open an issue funding request or quote-request issue using the provided template.
+2. Add the Polar.sh funding link, target amount, or explain the funding status.
+3. Wait for maintainer review if the issue has active funding, is quote-related, or is otherwise maintainer-approved.
 
 Unfunded issues may be closed automatically with a polite explanation of the policy.
 
 ## How Professional Services Work
 
-Professional services are handled separately from public bounty work.
+Professional services are handled separately from public issue funding.
 
 - Additional warranties, support terms, SLA commitments, or expanded liability coverage are available only by separate written agreement.
 - Contact the maintainer for a quote.
-- Public bounty work does not create exclusive access to a fix.
+- Public issue funding does not create exclusive access to a fix.
 
 ## How Releases Work
 
@@ -107,7 +110,7 @@ This repository currently uses a conservative GitHub-hosted fallback matrix wher
 
 This repository is provided on an `AS IS` basis, without warranty.
 
-- Liability is limited to the amount of the bounty paid for the specific issue.
+- Liability is limited to the amount of the issue funding paid for the specific issue.
 - No warranty is provided, including merchantability, fitness for a particular purpose, or non-infringement, unless separately agreed in writing.
 - No consequential damages, business interruption damages, lost profits, lost revenue, lost data, or similar damages are accepted.
 - Professional services with additional protections are available separately by written agreement.

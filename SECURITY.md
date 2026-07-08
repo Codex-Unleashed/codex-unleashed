@@ -31,13 +31,13 @@ Please include:
 ## Response Policy
 
 - The maintainer does not guarantee response times for unpaid reports.
-- Funded security work or professional-services engagements receive priority.
+- Security work with active issue funding or professional-services engagements receives priority.
 - If the issue belongs upstream, the maintainer may decline to fix it here or may carry a temporary patch until upstream resolves it.
 
 ## Trust Model
 
 - Patch files should stay small, auditable, and removable.
-- Each patch file should map to one funded bug ID.
+- Each patch directory should map to one repository-relative funded issue.
 - Releases should publish checksums and identify the exact upstream commit and patch list used.
 
 ## Disclaimer

@@ -6,7 +6,7 @@ This repository does not provide general support for Codex.
 
 The maintainer only replies to:
 
-- issues with an active bounty
+- issues with active issue funding
 - serious funding inquiries
 - quote requests
 - professional-services requests
@@ -16,11 +16,11 @@ Unfunded issues may be closed automatically without further discussion.
 
 ## Public Bug Funding
 
-Use Polar.sh for public issue bounties and sponsorships:
+Use Polar.sh for public issue funding:
 
 - Polar: `TODO_POLAR_URL`
 
-Funding pays for engineering work. It does not buy exclusive ownership of the result. Funded fixes are released publicly.
+Funding pays for engineering work. It does not buy exclusive ownership of the result. Companies or individuals may add money against the same issue through pay-what-you-want funding links, and funded fixes are released publicly.
 
 ## Private Work
 

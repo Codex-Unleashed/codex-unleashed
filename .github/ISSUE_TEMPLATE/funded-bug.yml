@@ -1,13 +1,13 @@
-name: Funded bug / quote request
-description: Report a funded Codex bug, funding inquiry, or quote request.
-title: "[funded-bug]: "
+name: Issue funding request / quote request
+description: Report a Codex bug for issue funding, a funding inquiry, or a quote request.
+title: "[issue-funding]: "
 labels:
   - needs-triage
 body:
   - type: markdown
     attributes:
       value: |
-        Unfunded issues may be closed without reply. Use Polar.sh for public bounties, or request a quote for private/professional work.
+        Unfunded issues may be closed without reply. Use Polar.sh issue funding for public work, or request a quote for private/professional work.
   - type: input
     id: summary
     attributes:
@@ -76,10 +76,11 @@ body:
   - type: dropdown
     id: funding_status
     attributes:
-      label: Bounty/funding status
+      label: Issue funding status
       options:
         - Already funded on Polar.sh
         - Funding in progress
+        - Funding target not yet reached
         - Requesting a quote first
         - Professional-services inquiry
     validations:
@@ -88,10 +89,18 @@ body:
     id: polar_link
     attributes:
       label: Polar.sh link or note
-      description: Provide the Polar.sh issue or sponsorship URL, or explain the funding plan.
-      placeholder: TODO_POLAR_URL/issues/123
+      description: Provide the Polar.sh funding URL, target amount, or explain the funding plan.
+      placeholder: TODO_POLAR_URL
     validations:
       required: true
+  - type: input
+    id: funding_target
+    attributes:
+      label: Funding target
+      description: Optional threshold at which work should begin.
+      placeholder: USD 3000
+    validations:
+      required: false
   - type: dropdown
     id: quote_request
     attributes:
@@ -116,9 +125,13 @@ body:
       options:
         - label: I understand that unfunded issues may be closed without reply.
           required: true
-        - label: I understand that fixes are public and bounty payment does not grant exclusive ownership of the fix.
+        - label: I understand that fixes are public and issue funding does not grant exclusive ownership of the fix.
           required: true
-        - label: I understand that liability is limited to the amount of the bounty paid for the issue.
+        - label: I understand that multiple companies or individuals may fund the same issue and those payments may be aggregated.
+          required: true
+        - label: I understand that once the necessary funding threshold is reached, the maintainer may fix the issue and collect all payments against that issue.
+          required: true
+        - label: I understand that liability is limited to the amount of the issue funding paid for the issue.
           required: true
         - label: I understand there is no warranty unless separately agreed in writing.
           required: true

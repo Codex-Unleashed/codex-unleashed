@@ -42,9 +42,9 @@ jobs:
             const comment = [
               "Thanks for the report.",
               "",
-              "This repository only keeps issues open for funded work, quote requests, professional-services requests, or issues explicitly approved by the maintainer.",
+              "This repository only keeps issues open for active issue funding, quote requests, professional-services requests, or issues explicitly approved by the maintainer.",
               "",
-              "If you want this issue considered here, please fund it through Polar.sh or contact the maintainer for a quote.",
+              "If you want this issue considered here, please add Polar.sh issue funding to it or contact the maintainer for a quote.",
               "",
               "- Polar: TODO_POLAR_URL",
               "- GitHub: @cowwoc",

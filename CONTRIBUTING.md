@@ -10,11 +10,12 @@ This repository does not accept pull requests.
 
 - If you need your own changes, fork this repository privately or publicly and maintain your own patch queue.
 - If you want a bug fixed here, open a funded issue or a quote request.
+- If you want a bug fixed here, open an issue funding request or a quote request.
 - If you need private or commercial engineering work, contact the maintainer for a quote.
 
 ## Patch Policy
 
-- Every patch file must correspond to one funded bug ID.
+- Every issue directory must correspond to one repository-relative funded issue.
 - Every patch must contain exactly one logical bug fix.
 - Patches should be generated with `git format-patch`.
 - Patches should remain small, auditable, and removable after upstream fixes the issue.
