@@ -153,6 +153,11 @@ configure_rusty_v8_overrides() {
   export RUSTY_V8_SRC_BINDING_PATH="${binding_path}"
 }
 
+should_configure_rusty_v8_overrides() {
+  local target="${1:-}"
+  [[ -n "${target}" && "${target}" != *windows* ]]
+}
+
 if [[ ! -d "${target_dir}/.git" ]]; then
   echo "ERROR: target is not a git checkout: ${target_dir}" >&2
   exit 1
@@ -171,7 +176,9 @@ elif [[ -n "${UPSTREAM_TEST_COMMAND:-}" ]]; then
     if [[ -z "${test_target}" ]]; then
       test_target="$(infer_host_target)"
     fi
-    configure_rusty_v8_overrides "${test_target}"
+    if should_configure_rusty_v8_overrides "${test_target}"; then
+      configure_rusty_v8_overrides "${test_target}"
+    fi
   fi
   bash -lc "${UPSTREAM_TEST_COMMAND}"
 elif is_current_upstream_layout; then
@@ -192,7 +199,9 @@ elif is_current_upstream_layout; then
   if [[ -z "${test_target}" ]]; then
     test_target="$(infer_host_target)"
   fi
-  configure_rusty_v8_overrides "${test_target}"
+  if should_configure_rusty_v8_overrides "${test_target}"; then
+    configure_rusty_v8_overrides "${test_target}"
+  fi
   pnpm install --frozen-lockfile
   python3 .github/scripts/verify_cargo_workspace_manifests.py
   python3 .github/scripts/verify_tui_core_boundary.py
@@ -254,7 +263,9 @@ elif is_current_upstream_layout; then
     exit 1
   fi
   rustup target add "${build_target}"
-  configure_rusty_v8_overrides "${build_target}"
+  if should_configure_rusty_v8_overrides "${build_target}"; then
+    configure_rusty_v8_overrides "${build_target}"
+  fi
 
   release_binaries="$(default_release_binaries "${build_target}")"
   build_args=(--manifest-path ./codex-rs/Cargo.toml --release --target "${build_target}")
