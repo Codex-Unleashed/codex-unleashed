@@ -31,6 +31,53 @@ is_current_upstream_layout() {
   [[ -f pnpm-lock.yaml && -f codex-rs/Cargo.toml ]]
 }
 
+infer_host_target() {
+  case "$(uname -s):$(uname -m)" in
+    Linux:x86_64)
+      printf '%s\n' "x86_64-unknown-linux-gnu"
+      ;;
+    Linux:aarch64|Linux:arm64)
+      printf '%s\n' "aarch64-unknown-linux-gnu"
+      ;;
+    Darwin:x86_64)
+      printf '%s\n' "x86_64-apple-darwin"
+      ;;
+    Darwin:arm64|Darwin:aarch64)
+      printf '%s\n' "aarch64-apple-darwin"
+      ;;
+    MINGW*:x86_64|MSYS*:x86_64|CYGWIN*:x86_64|Windows_NT:x86_64)
+      printf '%s\n' "x86_64-pc-windows-msvc"
+      ;;
+    MINGW*:aarch64|MSYS*:aarch64|CYGWIN*:aarch64|Windows_NT:aarch64)
+      printf '%s\n' "aarch64-pc-windows-msvc"
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+infer_default_release_target() {
+  case "$(uname -s)" in
+    Linux)
+      printf '%s\n' "x86_64-unknown-linux-musl"
+      ;;
+    Darwin)
+      printf '%s\n' "$(uname -m)-apple-darwin"
+      ;;
+    MINGW*|MSYS*|CYGWIN*|Windows_NT)
+      if [[ "$(uname -m)" == "aarch64" ]]; then
+        printf '%s\n' "aarch64-pc-windows-msvc"
+      else
+        printf '%s\n' "x86_64-pc-windows-msvc"
+      fi
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
 default_release_binaries() {
   local target="${1:-}"
 
@@ -52,6 +99,54 @@ default_release_binaries() {
   esac
 }
 
+configure_rusty_v8_overrides() {
+  local target="${1:-}"
+  local version=""
+  local release_tag=""
+  local base_url=""
+  local binding_dir=""
+  local archive_path=""
+  local binding_path=""
+  local checksums_path=""
+
+  if [[ -z "${target}" ]]; then
+    echo "ERROR: configure_rusty_v8_overrides requires a target triple" >&2
+    exit 1
+  fi
+
+  if ! command -v curl >/dev/null 2>&1; then
+    echo "ERROR: curl is required to configure rusty_v8 artifact overrides" >&2
+    exit 1
+  fi
+
+  version="$(python3 .github/scripts/rusty_v8_bazel.py resolved-v8-crate-version)"
+  release_tag="rusty-v8-v${version}"
+  base_url="https://github.com/openai/codex/releases/download/${release_tag}"
+  binding_dir="${TMPDIR:-/tmp}/rusty_v8/${target}"
+  archive_path="${binding_dir}/librusty_v8_release_${target}.a.gz"
+  binding_path="${binding_dir}/src_binding_release_${target}.rs"
+  checksums_path="${binding_dir}/rusty_v8_release_${target}.sha256"
+
+  mkdir -p "${binding_dir}"
+  curl -fsSL "${base_url}/librusty_v8_release_${target}.a.gz" -o "${archive_path}"
+  curl -fsSL "${base_url}/src_binding_release_${target}.rs" -o "${binding_path}"
+  curl -fsSL "${base_url}/rusty_v8_release_${target}.sha256" -o "${checksums_path}"
+
+  if [[ "$(wc -l < "${checksums_path}")" -ne 2 ]]; then
+    echo "ERROR: expected exactly two checksums for ${target} in ${checksums_path}" >&2
+    exit 1
+  fi
+
+  if command -v sha256sum >/dev/null 2>&1; then
+    (cd "${binding_dir}" && sha256sum -c "${checksums_path}")
+  else
+    (cd "${binding_dir}" && shasum -a 256 -c "${checksums_path}")
+  fi
+
+  export RUSTY_V8_ARCHIVE="${archive_path}"
+  export RUSTY_V8_SRC_BINDING_PATH="${binding_path}"
+}
+
 if [[ ! -d "${target_dir}/.git" ]]; then
   echo "ERROR: target is not a git checkout: ${target_dir}" >&2
   exit 1
@@ -65,6 +160,13 @@ if [[ "${SKIP_UPSTREAM_TESTS:-0}" == "1" ]]; then
   echo "Skipping upstream tests because SKIP_UPSTREAM_TESTS=1"
 elif [[ -n "${UPSTREAM_TEST_COMMAND:-}" ]]; then
   echo "Running UPSTREAM_TEST_COMMAND"
+  if is_current_upstream_layout; then
+    test_target="${UPSTREAM_TEST_TARGET:-${build_target:-}}"
+    if [[ -z "${test_target}" ]]; then
+      test_target="$(infer_host_target)"
+    fi
+    configure_rusty_v8_overrides "${test_target}"
+  fi
   bash -lc "${UPSTREAM_TEST_COMMAND}"
 elif is_current_upstream_layout; then
   echo "Detected current upstream Codex layout; running default upstream-aligned checks."
@@ -80,6 +182,11 @@ elif is_current_upstream_layout; then
     echo "ERROR: just is required for the current upstream Codex default test path" >&2
     exit 1
   fi
+  test_target="${UPSTREAM_TEST_TARGET:-${build_target:-}}"
+  if [[ -z "${test_target}" ]]; then
+    test_target="$(infer_host_target)"
+  fi
+  configure_rusty_v8_overrides "${test_target}"
   pnpm install --frozen-lockfile
   python3 .github/scripts/verify_cargo_workspace_manifests.py
   python3 .github/scripts/verify_tui_core_boundary.py
@@ -128,25 +235,10 @@ if [[ -n "${UPSTREAM_BUILD_COMMAND:-}" ]]; then
 elif is_current_upstream_layout; then
   echo "Detected current upstream Codex layout; running default upstream-aligned build."
   if [[ -z "${build_target}" ]]; then
-    case "$(uname -s)" in
-      Linux)
-        build_target="x86_64-unknown-linux-musl"
-        ;;
-      Darwin)
-        build_target="$(uname -m)-apple-darwin"
-        ;;
-      MINGW*|MSYS*|CYGWIN*|Windows_NT)
-        if [[ "$(uname -m)" == "aarch64" ]]; then
-          build_target="aarch64-pc-windows-msvc"
-        else
-          build_target="x86_64-pc-windows-msvc"
-        fi
-        ;;
-      *)
-        echo "ERROR: unable to infer default UPSTREAM_TARGET for $(uname -s)" >&2
-        exit 1
-        ;;
-    esac
+    build_target="$(infer_default_release_target)" || {
+      echo "ERROR: unable to infer default UPSTREAM_TARGET for $(uname -s)" >&2
+      exit 1
+    }
   fi
 
   if ! command -v rustup >/dev/null 2>&1; then
@@ -154,6 +246,7 @@ elif is_current_upstream_layout; then
     exit 1
   fi
   rustup target add "${build_target}"
+  configure_rusty_v8_overrides "${build_target}"
 
   release_binaries="$(default_release_binaries "${build_target}")"
   build_args=(--manifest-path ./codex-rs/Cargo.toml --release --target "${build_target}")
