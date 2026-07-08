@@ -87,7 +87,7 @@ jobs:
           SKIP_ARTIFACT_COLLECTION: "1"
         run: |
           set -euo pipefail
-          export UPSTREAM_TEST_COMMAND="${UPSTREAM_TEST_COMMAND:-python3 .github/scripts/verify_cargo_workspace_manifests.py && python3 .github/scripts/verify_tui_core_boundary.py && python3 .github/scripts/verify_bazel_clippy_lints.py && python3 -m unittest discover -s scripts/codex_package -p 'test_*.py' && just fmt-check && pnpm run format}"
+          export UPSTREAM_TEST_COMMAND="${UPSTREAM_TEST_COMMAND:-python3 .github/scripts/verify_cargo_workspace_manifests.py && python3 .github/scripts/verify_tui_core_boundary.py && python3 .github/scripts/verify_bazel_clippy_lints.py && python3 -m unittest discover -s scripts/codex_package -p 'test_*.py' && python3 -m unittest discover -s scripts/install -p 'test_*.py' && just fmt-check && pnpm run format}"
           ./scripts/build-release.sh upstream dist
 
       - name: Upload CI artifacts

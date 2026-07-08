@@ -27,6 +27,31 @@ output_dir="${2:-${repo_root}/dist}"
 output_dir="$(mkdir -p "${output_dir}" && cd "${output_dir}" && pwd)"
 build_target="${UPSTREAM_TARGET:-}"
 
+is_current_upstream_layout() {
+  [[ -f pnpm-lock.yaml && -f codex-rs/Cargo.toml ]]
+}
+
+default_release_binaries() {
+  local target="${1:-}"
+
+  if [[ -n "${UPSTREAM_BINARIES:-}" ]]; then
+    printf '%s\n' "${UPSTREAM_BINARIES}"
+    return 0
+  fi
+
+  case "${target}" in
+    *windows*)
+      printf '%s\n' "codex codex-code-mode-host codex-responses-api-proxy"
+      ;;
+    *linux*)
+      printf '%s\n' "codex codex-code-mode-host codex-responses-api-proxy bwrap"
+      ;;
+    *)
+      printf '%s\n' "codex codex-code-mode-host codex-responses-api-proxy"
+      ;;
+  esac
+}
+
 if [[ ! -d "${target_dir}/.git" ]]; then
   echo "ERROR: target is not a git checkout: ${target_dir}" >&2
   exit 1
@@ -41,8 +66,8 @@ if [[ "${SKIP_UPSTREAM_TESTS:-0}" == "1" ]]; then
 elif [[ -n "${UPSTREAM_TEST_COMMAND:-}" ]]; then
   echo "Running UPSTREAM_TEST_COMMAND"
   bash -lc "${UPSTREAM_TEST_COMMAND}"
-elif [[ -f pnpm-lock.yaml && -f codex-rs/Cargo.toml ]]; then
-  echo "Detected current upstream Codex layout; running conservative default checks."
+elif is_current_upstream_layout; then
+  echo "Detected current upstream Codex layout; running default upstream-aligned checks."
   if ! command -v pnpm >/dev/null 2>&1; then
     echo "ERROR: pnpm is required for the current upstream Codex default test path" >&2
     exit 1
@@ -51,10 +76,20 @@ elif [[ -f pnpm-lock.yaml && -f codex-rs/Cargo.toml ]]; then
     echo "ERROR: cargo is required for the current upstream Codex default test path" >&2
     exit 1
   fi
+  if ! command -v just >/dev/null 2>&1; then
+    echo "ERROR: just is required for the current upstream Codex default test path" >&2
+    exit 1
+  fi
   pnpm install --frozen-lockfile
+  python3 .github/scripts/verify_cargo_workspace_manifests.py
+  python3 .github/scripts/verify_tui_core_boundary.py
+  python3 .github/scripts/verify_bazel_clippy_lints.py
+  python3 -m unittest discover -s scripts/codex_package -p 'test_*.py'
+  if [[ -d scripts/install ]]; then
+    python3 -m unittest discover -s scripts/install -p 'test_*.py'
+  fi
+  just fmt-check
   pnpm run format
-  cargo fmt --manifest-path ./codex-rs/Cargo.toml -- --config imports_granularity=Item --check
-  cargo test --manifest-path ./codex-rs/Cargo.toml
 elif [[ -f pnpm-lock.yaml ]]; then
   echo "Detected pnpm-lock.yaml; running conservative pnpm checks."
   if command -v pnpm >/dev/null 2>&1; then
@@ -90,8 +125,8 @@ fi
 if [[ -n "${UPSTREAM_BUILD_COMMAND:-}" ]]; then
   echo "Running UPSTREAM_BUILD_COMMAND"
   bash -lc "${UPSTREAM_BUILD_COMMAND}"
-elif [[ -f pnpm-lock.yaml && -f codex-rs/Cargo.toml ]]; then
-  echo "Detected current upstream Codex layout; running conservative default build."
+elif is_current_upstream_layout; then
+  echo "Detected current upstream Codex layout; running default upstream-aligned build."
   if [[ -z "${build_target}" ]]; then
     case "$(uname -s)" in
       Linux)
@@ -120,18 +155,17 @@ elif [[ -f pnpm-lock.yaml && -f codex-rs/Cargo.toml ]]; then
   fi
   rustup target add "${build_target}"
 
-  if [[ "${build_target}" == *"-unknown-linux-musl" ]]; then
-    if ! command -v zig >/dev/null 2>&1; then
-      echo "ERROR: zig is required for conservative musl cross-builds" >&2
-      exit 1
-    fi
-    if ! command -v cargo-zigbuild >/dev/null 2>&1; then
-      cargo install --locked cargo-zigbuild
-    fi
-    cargo zigbuild --manifest-path ./codex-rs/Cargo.toml --release --target "${build_target}" --bin codex
-  else
-    cargo build --manifest-path ./codex-rs/Cargo.toml --release --target "${build_target}" --bin codex
+  release_binaries="$(default_release_binaries "${build_target}")"
+  build_args=(--manifest-path ./codex-rs/Cargo.toml --release --target "${build_target}")
+  for binary in ${release_binaries}; do
+    build_args+=(--bin "${binary}")
+  done
+
+  if [[ "${build_target}" == "x86_64-pc-windows-msvc" ]]; then
+    export LIBSQLITE3_FLAGS=SQLITE_DISABLE_INTRINSIC
   fi
+
+  cargo build "${build_args[@]}"
 else
   echo "TODO: set UPSTREAM_BUILD_COMMAND to the exact upstream release build command." >&2
   exit 1
@@ -154,23 +188,24 @@ elif [[ "${SKIP_ARTIFACT_COLLECTION:-0}" == "1" ]]; then
   popd >/dev/null
   echo "Artifacts were intentionally skipped."
   exit 0
-elif [[ -f pnpm-lock.yaml && -f codex-rs/Cargo.toml ]]; then
-  echo "Detected current upstream Codex layout; collecting conservative default artifacts."
+elif is_current_upstream_layout; then
+  echo "Detected current upstream Codex layout; collecting default release binaries."
   artifact_target="${build_target}"
   if [[ -z "${artifact_target}" ]]; then
     echo "ERROR: artifact collection requires UPSTREAM_TARGET or an inferred build target" >&2
     exit 1
   fi
-  shopt -s nullglob
-  artifacts=(codex-rs/target/"${artifact_target}"/release/codex*)
-  shopt -u nullglob
-  if [[ ${#artifacts[@]} -eq 0 ]]; then
-    echo "ERROR: no default artifacts found under codex-rs/target/${artifact_target}/release/" >&2
-    exit 1
-  fi
-  for artifact in "${artifacts[@]}"; do
-    if [[ -f "${artifact}" ]]; then
-      cp -f "${artifact}" "${output_dir}/"
+
+  release_binaries="$(default_release_binaries "${artifact_target}")"
+  release_dir="codex-rs/target/${artifact_target}/release"
+  for binary in ${release_binaries}; do
+    if [[ -f "${release_dir}/${binary}" ]]; then
+      cp -f "${release_dir}/${binary}" "${output_dir}/"
+    elif [[ -f "${release_dir}/${binary}.exe" ]]; then
+      cp -f "${release_dir}/${binary}.exe" "${output_dir}/"
+    else
+      echo "ERROR: expected artifact not found for ${binary} under ${release_dir}" >&2
+      exit 1
     fi
   done
 else

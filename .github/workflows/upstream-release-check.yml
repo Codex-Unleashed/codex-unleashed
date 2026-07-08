@@ -72,7 +72,7 @@ jobs:
           git clone --depth 1 --branch "${upstream_tag}" https://github.com/openai/codex.git upstream
           upstream_sha="$(git -C upstream rev-parse HEAD)"
           patch_files="$(find patches -type f -name '*.patch' -printf '%P ' | sed 's/[[:space:]]*$//')"
-          supported_targets="x86_64-unknown-linux-musl, aarch64-unknown-linux-musl, x86_64-apple-darwin, aarch64-apple-darwin, x86_64-pc-windows-msvc, aarch64-pc-windows-msvc"
+          supported_targets="x86_64-unknown-linux-musl, x86_64-apple-darwin, aarch64-apple-darwin, x86_64-pc-windows-msvc"
 
           echo "should_release=true" >> "${GITHUB_OUTPUT}"
           echo "upstream_tag=${upstream_tag}" >> "${GITHUB_OUTPUT}"
@@ -103,17 +103,36 @@ jobs:
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Install just
+        uses: taiki-e/install-action@44c6d64aa62cd779e873306675c7a58e86d6d532
+        with:
+          tool: just@1.51.0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b
+        with:
+          version: "0.11.3"
+
+      - name: Install DotSlash
+        uses: facebook/install-dotslash@1e4e7b3e07eaca387acb98f1d4720e0bee8dbb6a
+
       - name: Set up Zig
-        uses: mlugg/setup-zig@v2
+        uses: mlugg/setup-zig@v1
         with:
           version: 0.14.0
-          use-cache: false
 
       - name: Clone upstream tag
         shell: bash
         run: |
           set -euo pipefail
           git clone --depth 1 --branch "${{ needs.prepare.outputs.upstream_tag }}" https://github.com/openai/codex.git upstream
+
+      - name: Install upstream dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd upstream
+          pnpm install --frozen-lockfile
 
       - name: Verify patches and upstream checks
         shell: bash
@@ -125,6 +144,7 @@ jobs:
           SKIP_ARTIFACT_COLLECTION: "1"
         run: |
           set -euo pipefail
+          export UPSTREAM_TEST_COMMAND="${UPSTREAM_TEST_COMMAND:-python3 .github/scripts/verify_cargo_workspace_manifests.py && python3 .github/scripts/verify_tui_core_boundary.py && python3 .github/scripts/verify_bazel_clippy_lints.py && python3 -m unittest discover -s scripts/codex_package -p 'test_*.py' && python3 -m unittest discover -s scripts/install -p 'test_*.py' && just fmt-check && pnpm run format}"
           ./scripts/build-release.sh upstream dist
   build:
     needs:
@@ -136,18 +156,21 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # TODO: upstream also publishes Linux arm64 and Windows arm64 bundles
+          # on custom runners. Keep this matrix to GitHub-hosted targets until
+          # the matching runner pool and signing flow are available here.
           - runner: ubuntu-latest
             target: x86_64-unknown-linux-musl
-          - runner: ubuntu-latest
-            target: aarch64-unknown-linux-musl
-          - runner: macos-latest
+            binaries: "codex codex-code-mode-host codex-responses-api-proxy bwrap"
+          - runner: macos-15
             target: x86_64-apple-darwin
-          - runner: macos-latest
+            binaries: "codex codex-code-mode-host codex-responses-api-proxy"
+          - runner: macos-15
             target: aarch64-apple-darwin
+            binaries: "codex codex-code-mode-host codex-responses-api-proxy"
           - runner: windows-latest
             target: x86_64-pc-windows-msvc
-          - runner: windows-latest
-            target: aarch64-pc-windows-msvc
+            binaries: "codex codex-code-mode-host codex-responses-api-proxy"
     steps:
       - name: Checkout patch repo
         uses: actions/checkout@v4
@@ -164,19 +187,43 @@ jobs:
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install just
+        uses: taiki-e/install-action@44c6d64aa62cd779e873306675c7a58e86d6d532
+        with:
+          tool: just@1.51.0
+
+      - name: Install DotSlash
+        uses: facebook/install-dotslash@1e4e7b3e07eaca387acb98f1d4720e0bee8dbb6a
 
       - name: Set up Zig
         if: ${{ contains(matrix.target, 'linux-musl') }}
-        uses: mlugg/setup-zig@v2
+        uses: mlugg/setup-zig@v1
         with:
           version: 0.14.0
-          use-cache: false
 
       - name: Clone upstream tag
         shell: bash
         run: |
           set -euo pipefail
           git clone --depth 1 --branch "${{ needs.prepare.outputs.upstream_tag }}" https://github.com/openai/codex.git upstream
+
+      - name: Install Linux build dependencies
+        if: ${{ runner.os == 'Linux' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -y
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends binutils pkg-config libcap-dev ca-certificates curl musl-tools g++ clang libc++-dev libc++abi-dev lld xz-utils
+
+      - name: Install upstream dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd upstream
+          pnpm install --frozen-lockfile
 
       - name: Build patched release
         shell: bash
@@ -185,6 +232,7 @@ jobs:
           UPSTREAM_BUILD_COMMAND: ${{ vars.UPSTREAM_BUILD_COMMAND }}
           UPSTREAM_ARTIFACT_GLOB: ${{ vars.UPSTREAM_ARTIFACT_GLOB }}
           UPSTREAM_TARGET: ${{ matrix.target }}
+          UPSTREAM_BINARIES: ${{ matrix.binaries }}
           SKIP_UPSTREAM_TESTS: "1"
         run: |
           set -euo pipefail
@@ -223,7 +271,7 @@ jobs:
             patch_files="none"
           fi
           cat > RELEASE_NOTES.md <<EOF
-          # Codex Patches ${{ needs.prepare.outputs.patched_tag }}
+          # Codex Fixes ${{ needs.prepare.outputs.patched_tag }}
 
           - Upstream Codex version/tag: ${{ needs.prepare.outputs.upstream_tag }}
           - Upstream commit SHA: ${{ needs.prepare.outputs.upstream_sha }}
