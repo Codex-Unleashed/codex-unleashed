@@ -1,6 +1,6 @@
 # Codex Fixes
 
-A community-maintained patch queue and patched binary distribution for OpenAI Codex.
+A public patch queue and patched binary distribution for OpenAI Codex.
 
 > Warning: Unofficial, not affiliated with OpenAI.
 
@@ -29,7 +29,8 @@ After extracting the archive, run the included `codex` binary the same way you w
 ## Why This Exists
 
 - `codex-fixes` maintains a small, auditable patch layer on top of upstream [`openai/codex`](https://github.com/openai/codex).
-- The intent is to publish temporary bug-fix builds quickly, then remove patches once the fixes land upstream.
+- Important user-facing issues can take months to be fixed upstream, even when they are time-sensitive for real users and teams.
+- This distribution exists to bridge that gap by shipping targeted fixes quickly for issues that matter to users, then removing those patches once the fixes land upstream.
 - This repository is open source under the same license as upstream Codex. At the time of writing, upstream `openai/codex` is licensed under Apache License 2.0.
 - Upstream issues do not always get fixed on your timeline.
 - This repository carries small, auditable Codex fixes until upstream absorbs them.
