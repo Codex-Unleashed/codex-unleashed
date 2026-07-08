@@ -1,19 +1,16 @@
-name: ci
+name: blocking-ci
 
 on:
-  workflow_dispatch:
-    inputs:
-      upstream_ref:
-        description: "Optional upstream ref to test. Defaults to main."
-        required: false
-        type: string
+  pull_request: {}
+  push:
+    branches: [main]
 
 jobs:
   cargo-deny:
     name: cargo-deny
     uses: ./.github/workflows/cargo-deny.yml
     with:
-      upstream_ref: ${{ inputs.upstream_ref || 'main' }}
+      upstream_ref: main
     secrets: inherit
 
   codespell:
@@ -25,21 +22,21 @@ jobs:
     name: repo-checks
     uses: ./.github/workflows/repo-checks.yml
     with:
-      upstream_ref: ${{ inputs.upstream_ref || 'main' }}
+      upstream_ref: main
     secrets: inherit
 
   rust-ci:
     name: rust-ci
     uses: ./.github/workflows/rust-ci.yml
     with:
-      upstream_ref: ${{ inputs.upstream_ref || 'main' }}
+      upstream_ref: main
     secrets: inherit
 
   sdk:
     name: sdk
     uses: ./.github/workflows/sdk.yml
     with:
-      upstream_ref: ${{ inputs.upstream_ref || 'main' }}
+      upstream_ref: main
     secrets: inherit
 
   required:
