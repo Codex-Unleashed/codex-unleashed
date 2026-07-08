@@ -84,6 +84,7 @@ jobs:
           UPSTREAM_TEST_COMMAND: ${{ vars.UPSTREAM_TEST_COMMAND }}
           UPSTREAM_BUILD_COMMAND: ${{ vars.UPSTREAM_BUILD_COMMAND }}
           UPSTREAM_ARTIFACT_GLOB: ${{ vars.UPSTREAM_ARTIFACT_GLOB }}
+          SKIP_UPSTREAM_BUILD: "1"
           SKIP_ARTIFACT_COLLECTION: "1"
         run: |
           set -euo pipefail

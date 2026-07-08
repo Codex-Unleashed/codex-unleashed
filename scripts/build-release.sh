@@ -229,7 +229,9 @@ else
   exit 1
 fi
 
-if [[ -n "${UPSTREAM_BUILD_COMMAND:-}" ]]; then
+if [[ "${SKIP_UPSTREAM_BUILD:-0}" == "1" ]]; then
+  echo "Skipping upstream build because SKIP_UPSTREAM_BUILD=1"
+elif [[ -n "${UPSTREAM_BUILD_COMMAND:-}" ]]; then
   echo "Running UPSTREAM_BUILD_COMMAND"
   bash -lc "${UPSTREAM_BUILD_COMMAND}"
 elif is_current_upstream_layout; then

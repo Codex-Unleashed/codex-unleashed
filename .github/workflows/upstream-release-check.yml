@@ -141,6 +141,7 @@ jobs:
           UPSTREAM_BUILD_COMMAND: ${{ vars.UPSTREAM_BUILD_COMMAND }}
           UPSTREAM_ARTIFACT_GLOB: ${{ vars.UPSTREAM_ARTIFACT_GLOB }}
           UPSTREAM_TARGET: x86_64-unknown-linux-musl
+          SKIP_UPSTREAM_BUILD: "1"
           SKIP_ARTIFACT_COLLECTION: "1"
         run: |
           set -euo pipefail
@@ -217,6 +218,15 @@ jobs:
           set -euo pipefail
           sudo apt-get update -y
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends binutils pkg-config libcap-dev ca-certificates curl musl-tools g++ clang libc++-dev libc++abi-dev lld xz-utils
+
+      - name: Configure Linux musl toolchain
+        if: ${{ contains(matrix.target, 'linux-musl') }}
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          set -euo pipefail
+          bash upstream/.github/scripts/install-musl-build-tools.sh
 
       - name: Install upstream dependencies
         shell: bash
