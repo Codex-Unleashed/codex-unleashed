@@ -4,10 +4,9 @@ A public patch queue and patched binary distribution for OpenAI Codex.
 
 > Warning: Unofficial, not affiliated with OpenAI.
 
-[![Releases](https://img.shields.io/github/v/release/cowwoc/codex-fixes?display_name=tag)](https://github.com/cowwoc/codex-fixes/releases)
 [![License](https://img.shields.io/github/license/cowwoc/codex-fixes)](https://github.com/cowwoc/codex-fixes/blob/main/LICENSE)
+[![Upstream bugs](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/cowwoc/codex-fixes/main/docs/badges/upstream-bugs.json)](https://github.com/cowwoc/codex-fixes/tree/main/patches/openai/codex)
 [![Public fixes](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/cowwoc/codex-fixes/main/docs/badges/public-fixes.json)](https://github.com/cowwoc/codex-fixes/tree/main/patches)
-[![Early-Access fixes](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/cowwoc/codex-fixes/main/docs/badges/early-access-fixes.json)](https://github.com/cowwoc/codex-fixes/issues)
 
 ## Quickstart
 
