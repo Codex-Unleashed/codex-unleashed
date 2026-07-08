@@ -1,0 +1,165 @@
+name: Upstream release check
+
+on:
+  schedule:
+    - cron: "0 * * * *"
+  workflow_dispatch:
+    inputs:
+      upstream_tag:
+        description: "Optional upstream tag override."
+        required: false
+        type: string
+      patch_release_number:
+        description: "Optional patched release suffix override. Defaults to 0."
+        required: false
+        type: string
+
+concurrency:
+  group: upstream-release-check
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      should_release: ${{ steps.prepare.outputs.should_release }}
+      upstream_tag: ${{ steps.prepare.outputs.upstream_tag }}
+      upstream_sha: ${{ steps.prepare.outputs.upstream_sha }}
+      patched_tag: ${{ steps.prepare.outputs.patched_tag }}
+      build_date: ${{ steps.prepare.outputs.build_date }}
+      patch_files: ${{ steps.prepare.outputs.patch_files }}
+    steps:
+      - name: Checkout patch repo
+        uses: actions/checkout@v4
+
+      - name: Determine upstream release
+        id: prepare
+        shell: bash
+        env:
+          INPUT_UPSTREAM_TAG: ${{ inputs.upstream_tag || '' }}
+          INPUT_PATCH_RELEASE_NUMBER: ${{ inputs.patch_release_number || '' }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          patch_release="${INPUT_PATCH_RELEASE_NUMBER:-0}"
+          build_date="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+          if [[ -n "${INPUT_UPSTREAM_TAG:-}" ]]; then
+            upstream_tag="${INPUT_UPSTREAM_TAG}"
+          else
+            upstream_tag="$(./scripts/check-upstream-release.sh openai/codex | jq -r '.tag_name')"
+          fi
+
+          if [[ -z "${upstream_tag}" || "${upstream_tag}" == "null" ]]; then
+            echo "ERROR: failed to determine upstream tag" >&2
+            exit 1
+          fi
+
+          patched_tag="${upstream_tag}.${patch_release}"
+
+          if gh release view "${patched_tag}" >/dev/null 2>&1; then
+            echo "Patched release ${patched_tag} already exists."
+            echo "should_release=false" >> "${GITHUB_OUTPUT}"
+            echo "upstream_tag=${upstream_tag}" >> "${GITHUB_OUTPUT}"
+            echo "patched_tag=${patched_tag}" >> "${GITHUB_OUTPUT}"
+            echo "build_date=${build_date}" >> "${GITHUB_OUTPUT}"
+            echo "patch_files=$(find patches -maxdepth 1 -type f -name '*.patch' -printf '%f ' | sed 's/[[:space:]]*$//')" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          git clone --depth 1 --branch "${upstream_tag}" https://github.com/openai/codex.git upstream
+          upstream_sha="$(git -C upstream rev-parse HEAD)"
+          patch_files="$(find patches -maxdepth 1 -type f -name '*.patch' -printf '%f ' | sed 's/[[:space:]]*$//')"
+
+          echo "should_release=true" >> "${GITHUB_OUTPUT}"
+          echo "upstream_tag=${upstream_tag}" >> "${GITHUB_OUTPUT}"
+          echo "upstream_sha=${upstream_sha}" >> "${GITHUB_OUTPUT}"
+          echo "patched_tag=${patched_tag}" >> "${GITHUB_OUTPUT}"
+          echo "build_date=${build_date}" >> "${GITHUB_OUTPUT}"
+          echo "patch_files=${patch_files}" >> "${GITHUB_OUTPUT}"
+
+  build:
+    needs: prepare
+    if: needs.prepare.outputs.should_release == 'true'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+    steps:
+      - name: Checkout patch repo
+        uses: actions/checkout@v4
+
+      - name: Clone upstream tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --depth 1 --branch "${{ needs.prepare.outputs.upstream_tag }}" https://github.com/openai/codex.git upstream
+
+      - name: Build patched release
+        shell: bash
+        env:
+          UPSTREAM_TEST_COMMAND: ${{ vars.UPSTREAM_TEST_COMMAND }}
+          UPSTREAM_BUILD_COMMAND: ${{ vars.UPSTREAM_BUILD_COMMAND }}
+          UPSTREAM_ARTIFACT_GLOB: ${{ vars.UPSTREAM_ARTIFACT_GLOB }}
+        run: |
+          set -euo pipefail
+          # TODO: verify that this matrix matches the exact upstream release targets.
+          ./scripts/build-release.sh upstream "dist/${{ matrix.os }}"
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.os }}
+          path: dist/${{ matrix.os }}/
+          if-no-files-found: error
+
+  publish:
+    needs:
+      - prepare
+      - build
+    if: needs.prepare.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout patch repo
+        uses: actions/checkout@v4
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+
+      - name: Build release notes
+        shell: bash
+        run: |
+          set -euo pipefail
+          patch_files="${{ needs.prepare.outputs.patch_files }}"
+          if [[ -z "${patch_files}" ]]; then
+            patch_files="none"
+          fi
+          cat > RELEASE_NOTES.md <<EOF
+          # Codex Patches ${{ needs.prepare.outputs.patched_tag }}
+
+          - Upstream Codex version/tag: ${{ needs.prepare.outputs.upstream_tag }}
+          - Upstream commit SHA: ${{ needs.prepare.outputs.upstream_sha }}
+          - Patch files applied: ${patch_files}
+          - Build date: ${{ needs.prepare.outputs.build_date }}
+          - Supported platforms: Linux, macOS, Windows
+          - Checksums: Included in uploaded \`SHA256SUMS\` files
+
+          This is an unofficial patch release and is not affiliated with or endorsed by OpenAI.
+          EOF
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.prepare.outputs.patched_tag }}
+          name: ${{ needs.prepare.outputs.patched_tag }}
+          body_path: RELEASE_NOTES.md
+          files: release-artifacts/**/*

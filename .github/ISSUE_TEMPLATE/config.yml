@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Polar.sh funding
+    url: TODO_POLAR_URL
+    about: Fund an issue or sponsor maintenance work through Polar.sh.
+  - name: Professional services / quote request
+    url: mailto:TODO@example.com
+    about: Contact the maintainer for a quote for private or commercial work.

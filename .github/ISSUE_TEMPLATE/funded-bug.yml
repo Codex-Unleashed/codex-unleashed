@@ -1,0 +1,124 @@
+name: Funded bug / quote request
+description: Report a funded Codex bug, funding inquiry, or quote request.
+title: "[funded-bug]: "
+labels:
+  - needs-triage
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Unfunded issues may be closed without reply. Use Polar.sh for public bounties, or request a quote for private/professional work.
+  - type: input
+    id: summary
+    attributes:
+      label: Summary
+      description: Short description of the bug or request.
+      placeholder: Short summary
+    validations:
+      required: true
+  - type: input
+    id: upstream_version
+    attributes:
+      label: Upstream Codex version
+      description: Upstream release version or commit where the problem occurs.
+      placeholder: 1.3.6
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: Platform/OS
+      description: Platform, OS version, architecture, and shell if relevant.
+      placeholder: macOS 15 arm64
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      description: Exact steps needed to reproduce the problem.
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected_behavior
+    attributes:
+      label: Expected behavior
+      placeholder: Describe the expected behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: actual_behavior
+    attributes:
+      label: Actual behavior
+      placeholder: Describe the actual behavior.
+    validations:
+      required: true
+  - type: input
+    id: upstream_issue
+    attributes:
+      label: Link to upstream issue, if any
+      description: Link to an upstream `openai/codex` issue if one exists.
+      placeholder: https://github.com/openai/codex/issues/1234
+    validations:
+      required: false
+  - type: textarea
+    id: business_impact
+    attributes:
+      label: Business impact
+      description: Explain why this matters and any deadlines or operational impact.
+      placeholder: Describe impact, urgency, and affected users.
+    validations:
+      required: true
+  - type: dropdown
+    id: funding_status
+    attributes:
+      label: Bounty/funding status
+      options:
+        - Already funded on Polar.sh
+        - Funding in progress
+        - Requesting a quote first
+        - Professional-services inquiry
+    validations:
+      required: true
+  - type: input
+    id: polar_link
+    attributes:
+      label: Polar.sh link or note
+      description: Provide the Polar.sh issue or sponsorship URL, or explain the funding plan.
+      placeholder: TODO_POLAR_URL/issues/123
+    validations:
+      required: true
+  - type: dropdown
+    id: quote_request
+    attributes:
+      label: Whether this is a quote request
+      options:
+        - "No"
+        - "Yes"
+    validations:
+      required: true
+  - type: textarea
+    id: contact_information
+    attributes:
+      label: Contact information
+      description: Share the preferred way to contact you about funding or scope.
+      placeholder: GitHub handle, email, company name, or other contact details.
+    validations:
+      required: true
+  - type: checkboxes
+    id: agreement
+    attributes:
+      label: Agreement
+      options:
+        - label: I understand that unfunded issues may be closed without reply.
+          required: true
+        - label: I understand that fixes are public and bounty payment does not grant exclusive ownership of the fix.
+          required: true
+        - label: I understand that liability is limited to the amount of the bounty paid for the issue.
+          required: true
+        - label: I understand there is no warranty unless separately agreed in writing.
+          required: true

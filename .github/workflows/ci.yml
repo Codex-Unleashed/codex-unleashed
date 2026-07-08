@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+  workflow_dispatch:
+    inputs:
+      upstream_ref:
+        description: "Optional upstream ref to test. Defaults to main."
+        required: false
+        type: string
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify-patches:
+    name: Verify patches (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+    steps:
+      - name: Checkout patch repo
+        uses: actions/checkout@v4
+
+      - name: Set up Git
+        shell: bash
+        run: git config --global core.autocrlf false
+
+      - name: Clone upstream Codex
+        shell: bash
+        env:
+          UPSTREAM_REF: ${{ inputs.upstream_ref || '' }}
+        run: |
+          set -euo pipefail
+          ref="${UPSTREAM_REF:-main}"
+          git clone --depth 1 --branch "${ref}" https://github.com/openai/codex.git upstream || {
+            echo "Falling back to latest default branch checkout."
+            git clone --depth 1 https://github.com/openai/codex.git upstream
+          }
+
+      - name: Run upstream checks
+        shell: bash
+        env:
+          UPSTREAM_TEST_COMMAND: ${{ vars.UPSTREAM_TEST_COMMAND }}
+          UPSTREAM_BUILD_COMMAND: ${{ vars.UPSTREAM_BUILD_COMMAND }}
+          UPSTREAM_ARTIFACT_GLOB: ${{ vars.UPSTREAM_ARTIFACT_GLOB }}
+          SKIP_ARTIFACT_COLLECTION: "1"
+        run: |
+          set -euo pipefail
+          ./scripts/build-release.sh upstream dist
+
+      - name: Upload CI artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-${{ matrix.os }}
+          path: dist/
+          if-no-files-found: ignore

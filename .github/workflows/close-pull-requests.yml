@@ -1,0 +1,48 @@
+name: Close pull requests
+
+on:
+  pull_request_target:
+    types:
+      - opened
+      - reopened
+
+permissions:
+  pull-requests: write
+
+jobs:
+  close-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Comment and close
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+
+            if (pr.state === "closed") {
+              core.info("Pull request is already closed.");
+              return;
+            }
+
+            const body = [
+              "Thanks for the contribution.",
+              "",
+              "This repository does not accept pull requests because it is intentionally maintained as a narrow patch queue rather than a general fork.",
+              "",
+              "If you want to carry your own changes, please maintain your own fork privately or publicly.",
+              "If you want a fix included here, open a funded issue or contact the maintainer for a quote.",
+            ].join("\n");
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr.number,
+              body,
+            });
+
+            await github.rest.pulls.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number,
+              state: "closed",
+            });
