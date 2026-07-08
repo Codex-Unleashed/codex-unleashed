@@ -4,9 +4,11 @@
 
 1. Confirm the issue has an active bounty, a quote approval, or explicit maintainer approval.
 2. Create the fix against a clean checkout of upstream `openai/codex`.
-3. Generate one patch file per funded bug ID with `git format-patch`.
-4. Place the patch in `patches/` using the funded bug ID in the filename.
-5. Update any issue labels such as `funded`, `quote-request`, `professional-services`, or `maintainer-approved` as needed.
+3. Create `patches/<owner>/<repo>/issue-<number>/`.
+4. Add a `README.md` describing the issue reference, scope of the fix, and any upstream links.
+5. Generate one or more patch files with `git format-patch` and store them in that directory.
+6. Prefer `0001-<short-slug>.patch` naming over `change.patch`.
+7. Update any issue labels such as `funded`, `quote-request`, `professional-services`, or `maintainer-approved` as needed.
 
 ## Test It
 
@@ -25,7 +27,7 @@
 ## Remove A Patch After Upstream Fixes It
 
 1. Confirm the fix is present in an upstream release or commit.
-2. Remove the corresponding patch file from `patches/`.
+2. Remove the corresponding `patches/<owner>/<repo>/issue-<number>/` directory.
 3. Re-run `ci.yml` to confirm remaining patches still apply cleanly.
 4. Note the removal in the next release notes.
 

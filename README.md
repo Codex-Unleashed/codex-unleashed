@@ -1,4 +1,4 @@
-# Codex Patches
+# Codex Fixes
 
 A community-maintained patch queue and patched binary distribution for OpenAI Codex.
 
@@ -27,7 +27,7 @@ Developers who want to contribute code should maintain their own fork, privately
 
 Public bug-fix work is funded through Polar.sh because it supports open-source issue funding and bounties.
 
-- Customers can fund an issue through Polar.sh.
+- Customers can fund an issue through Polar.sh using a dedicated product or checkout link for that issue.
 - Bounty payment funds engineering work, not exclusive ownership of the fix.
 - All funded fixes are released publicly in this repository.
 - If a fix is infeasible, out of scope, or cannot be completed, the bounty may be refunded.
@@ -62,7 +62,7 @@ Professional services are handled separately from public bounty work.
 For every upstream Codex release, this repository publishes a corresponding patched release after:
 
 1. Cloning upstream Codex at the release tag.
-2. Applying all `patches/*.patch` files.
+2. Applying all patch files under `patches/<owner>/<repo>/issue-<number>/`.
 3. Running the relevant upstream checks and tests.
 4. Building binaries for the same platforms as upstream, or a conservative fallback matrix where the upstream workflow depends on private runners or signing infrastructure.
 5. Publishing binaries plus SHA256 checksums in a GitHub Release.
@@ -98,7 +98,7 @@ This repository currently uses a conservative GitHub-hosted fallback matrix wher
 ## Security / Trust Model
 
 - Patch files are public and intended to be small, auditable, and removable.
-- Each patch file should correspond to exactly one funded bug ID.
+- Each issue directory is repository-relative, for example `patches/openai/codex/issue-1234/`.
 - Patches should be generated with `git format-patch`.
 - Consumers should review patch diffs, workflow definitions, and release notes before trusting a binary.
 - Security reports should follow [SECURITY.md](SECURITY.md).

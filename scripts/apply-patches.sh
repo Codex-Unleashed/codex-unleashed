@@ -5,7 +5,7 @@ usage() {
   cat <<'EOF'
 Usage: apply-patches.sh <upstream-checkout>
 
-Applies every patch under patches/*.patch to the target checkout.
+Applies every patch under patches/**/ to the target checkout.
 Fails immediately if any patch does not apply.
 EOF
 }
@@ -36,7 +36,7 @@ cleanup_on_error() {
 trap cleanup_on_error ERR
 
 shopt -s nullglob
-patches=("${patch_dir}"/*.patch)
+mapfile -t patches < <(find "${patch_dir}" -type f -name '*.patch' | sort)
 shopt -u nullglob
 
 if [[ ${#patches[@]} -eq 0 ]]; then
@@ -45,7 +45,7 @@ if [[ ${#patches[@]} -eq 0 ]]; then
 fi
 
 for patch_file in "${patches[@]}"; do
-  echo "Applying $(basename "${patch_file}")"
+  echo "Applying ${patch_file#${repo_root}/}"
   git -C "${target_dir}" am --3way --keep-cr "${patch_file}"
 done
 
