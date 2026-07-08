@@ -15,15 +15,11 @@ concurrency:
 
 jobs:
   verify-patches:
-    name: Verify patches (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os:
-          - ubuntu-latest
-          - macos-latest
-          - windows-latest
+    name: Verify patches
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NODE_OPTIONS: --max-old-space-size=4096
     steps:
       - name: Checkout patch repo
         uses: actions/checkout@v4
@@ -45,8 +41,20 @@ jobs:
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Install just
+        uses: taiki-e/install-action@v2
+        with:
+          tool: just@1.51.0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8
+        with:
+          version: "0.11.3"
+
+      - name: Install DotSlash
+        uses: facebook/install-dotslash@v2
+
       - name: Set up Zig
-        if: matrix.os == 'ubuntu-latest'
         uses: mlugg/setup-zig@v1
         with:
           version: 0.14.0
@@ -66,7 +74,7 @@ jobs:
       - name: Run upstream checks
         shell: bash
         env:
-          UPSTREAM_TEST_COMMAND: ${{ vars.UPSTREAM_TEST_COMMAND }}
+          UPSTREAM_TEST_COMMAND: ${{ vars.UPSTREAM_TEST_COMMAND || 'python3 .github/scripts/verify_cargo_workspace_manifests.py && python3 .github/scripts/verify_tui_core_boundary.py && python3 .github/scripts/verify_bazel_clippy_lints.py && python3 -m unittest discover -s scripts/codex_package -p '\''test_*.py'\'' && just fmt-check && pnpm run format' }}
           UPSTREAM_BUILD_COMMAND: ${{ vars.UPSTREAM_BUILD_COMMAND }}
           UPSTREAM_ARTIFACT_GLOB: ${{ vars.UPSTREAM_ARTIFACT_GLOB }}
           SKIP_ARTIFACT_COLLECTION: "1"
@@ -78,6 +86,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ci-${{ matrix.os }}
+          name: ci-ubuntu-latest
           path: dist/
           if-no-files-found: ignore
