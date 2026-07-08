@@ -87,6 +87,11 @@ jobs:
     if: needs.prepare.outputs.should_release == 'true'
     runs-on: ubuntu-latest
     steps:
+      - name: Record job start
+        id: timing_start
+        shell: bash
+        run: echo "epoch=$(date +%s)" >> "$GITHUB_OUTPUT"
+
       - name: Checkout patch repo
         uses: actions/checkout@v4
 
@@ -104,6 +109,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+
+      - name: Determine pnpm store path
+        id: pnpm_store
+        shell: bash
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
@@ -123,11 +133,13 @@ jobs:
           upstream-ref: ${{ needs.prepare.outputs.upstream_tag }}
 
       - name: Cache pnpm store
-        uses: actions/setup-node@v4
+        id: pnpm_cache
+        uses: actions/cache@v4
         with:
-          node-version: 22
-          cache: pnpm
-          cache-dependency-path: upstream/pnpm-lock.yaml
+          path: ${{ steps.pnpm_store.outputs.path }}
+          key: pnpm-${{ runner.os }}-${{ hashFiles('upstream/pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-${{ runner.os }}-
 
       - name: Cache Cargo artifacts
         uses: Swatinem/rust-cache@v2
@@ -146,6 +158,25 @@ jobs:
 
       - name: Verify codex-rs Cargo manifests inherit workspace settings
         run: ./scripts/run-upstream-repo-checks.sh upstream
+
+      - name: Write verify summary
+        if: always()
+        shell: bash
+        env:
+          START_EPOCH: ${{ steps.timing_start.outputs.epoch }}
+          PNPM_CACHE_HIT: ${{ steps.pnpm_cache.outputs.cache-hit || 'false' }}
+        run: |
+          set -euo pipefail
+          end_epoch="$(date +%s)"
+          duration="$(( end_epoch - START_EPOCH ))"
+          {
+            echo "## Verify summary"
+            echo
+            echo "- Outcome: ${{ job.status }}"
+            echo "- Duration (seconds): ${duration}"
+            echo "- pnpm cache hit: ${PNPM_CACHE_HIT}"
+            echo "- Cargo cache: managed by Swatinem/rust-cache"
+          } >> "$GITHUB_STEP_SUMMARY"
 
   build:
     needs:
@@ -169,22 +200,52 @@ jobs:
             bundle: primary
             artifact_name: x86_64-unknown-linux-musl
             binaries: "codex codex-code-mode-host codex-responses-api-proxy bwrap"
+          - runner: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            bundle: app-server
+            artifact_name: x86_64-unknown-linux-musl-app-server
+            binaries: "codex-app-server codex-code-mode-host"
           - runner: macos-15
             target: x86_64-apple-darwin
             bundle: primary
             artifact_name: x86_64-apple-darwin
             binaries: "codex codex-code-mode-host codex-responses-api-proxy"
           - runner: macos-15
+            target: x86_64-apple-darwin
+            bundle: app-server
+            artifact_name: x86_64-apple-darwin-app-server
+            binaries: "codex-app-server codex-code-mode-host"
+          - runner: macos-15
             target: aarch64-apple-darwin
             bundle: primary
             artifact_name: aarch64-apple-darwin
             binaries: "codex codex-code-mode-host codex-responses-api-proxy"
+          - runner: macos-15
+            target: aarch64-apple-darwin
+            bundle: app-server
+            artifact_name: aarch64-apple-darwin-app-server
+            binaries: "codex-app-server codex-code-mode-host"
           - runner: windows-latest
             target: x86_64-pc-windows-msvc
             bundle: primary
             artifact_name: x86_64-pc-windows-msvc
             binaries: "codex codex-code-mode-host codex-responses-api-proxy"
+          - runner: windows-latest
+            target: x86_64-pc-windows-msvc
+            bundle: helpers
+            artifact_name: x86_64-pc-windows-msvc-helpers
+            binaries: "codex-windows-sandbox-setup codex-command-runner"
+          - runner: windows-latest
+            target: x86_64-pc-windows-msvc
+            bundle: app-server
+            artifact_name: x86_64-pc-windows-msvc-app-server
+            binaries: "codex-app-server codex-code-mode-host"
     steps:
+      - name: Record job start
+        id: timing_start
+        shell: bash
+        run: echo "epoch=$(date +%s)" >> "$GITHUB_OUTPUT"
+
       - name: Checkout patch repo
         uses: actions/checkout@v4
 
@@ -202,6 +263,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+
+      - name: Determine pnpm store path
+        id: pnpm_store
+        shell: bash
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
@@ -271,6 +337,7 @@ jobs:
           sudo chown -R "$USER:$USER" /var/cache/apt /var/lib/apt/lists
       - name: Restore APT cache
         if: ${{ runner.os == 'Linux' }}
+        id: apt_cache
         uses: actions/cache/restore@v4
         with:
           path: /var/cache/apt
@@ -289,11 +356,13 @@ jobs:
           upstream-ref: ${{ needs.prepare.outputs.upstream_tag }}
 
       - name: Cache pnpm store
-        uses: actions/setup-node@v4
+        id: pnpm_cache
+        uses: actions/cache@v4
         with:
-          node-version: 22
-          cache: pnpm
-          cache-dependency-path: upstream/pnpm-lock.yaml
+          path: ${{ steps.pnpm_store.outputs.path }}
+          key: pnpm-${{ runner.os }}-${{ hashFiles('upstream/pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-${{ runner.os }}-
 
       - name: Cache Cargo artifacts
         uses: Swatinem/rust-cache@v2
@@ -305,6 +374,7 @@ jobs:
 
       - name: Cache rusty_v8 artifacts
         if: ${{ !contains(matrix.target, 'windows') }}
+        id: rusty_v8_cache
         uses: actions/cache@v4
         with:
           path: .cache/rusty_v8
@@ -370,6 +440,31 @@ jobs:
           name: release-${{ matrix.artifact_name }}
           path: dist/${{ matrix.target }}/
           if-no-files-found: error
+
+      - name: Write build summary
+        if: always()
+        shell: bash
+        env:
+          START_EPOCH: ${{ steps.timing_start.outputs.epoch }}
+          PNPM_CACHE_HIT: ${{ steps.pnpm_cache.outputs.cache-hit || 'false' }}
+          APT_CACHE_HIT: ${{ steps.apt_cache.outputs.cache-hit || 'n/a' }}
+          RUSTY_V8_CACHE_HIT: ${{ steps.rusty_v8_cache.outputs.cache-hit || 'n/a' }}
+        run: |
+          set -euo pipefail
+          end_epoch="$(date +%s)"
+          duration="$(( end_epoch - START_EPOCH ))"
+          {
+            echo "## Build summary"
+            echo
+            echo "- Target: ${{ matrix.target }}"
+            echo "- Bundle: ${{ matrix.bundle }}"
+            echo "- Outcome: ${{ job.status }}"
+            echo "- Duration (seconds): ${duration}"
+            echo "- pnpm cache hit: ${PNPM_CACHE_HIT}"
+            echo "- APT cache hit: ${APT_CACHE_HIT}"
+            echo "- rusty_v8 cache hit: ${RUSTY_V8_CACHE_HIT}"
+            echo "- Cargo cache: managed by Swatinem/rust-cache"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Save APT cache
         if: ${{ always() && !cancelled() && runner.os == 'Linux' }}

@@ -21,6 +21,11 @@ jobs:
     env:
       NODE_OPTIONS: --max-old-space-size=4096
     steps:
+      - name: Record job start
+        id: timing_start
+        shell: bash
+        run: echo "epoch=$(date +%s)" >> "$GITHUB_OUTPUT"
+
       - name: Checkout patch repo
         uses: actions/checkout@v4
 
@@ -43,6 +48,11 @@ jobs:
         with:
           node-version: 22
 
+      - name: Determine pnpm store path
+        id: pnpm_store
+        shell: bash
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
 
@@ -62,11 +72,13 @@ jobs:
           fallback-to-default-branch: "true"
 
       - name: Cache pnpm store
-        uses: actions/setup-node@v4
+        id: pnpm_cache
+        uses: actions/cache@v4
         with:
-          node-version: 22
-          cache: pnpm
-          cache-dependency-path: upstream/pnpm-lock.yaml
+          path: ${{ steps.pnpm_store.outputs.path }}
+          key: pnpm-${{ runner.os }}-${{ hashFiles('upstream/pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-${{ runner.os }}-
 
       - name: Cache Cargo artifacts
         uses: Swatinem/rust-cache@v2
@@ -93,3 +105,22 @@ jobs:
           name: ci-ubuntu-latest
           path: upstream/codex-rs/target/**/cargo-timings/cargo-timing.html
           if-no-files-found: ignore
+
+      - name: Write job summary
+        if: always()
+        shell: bash
+        env:
+          START_EPOCH: ${{ steps.timing_start.outputs.epoch }}
+          PNPM_CACHE_HIT: ${{ steps.pnpm_cache.outputs.cache-hit || 'false' }}
+        run: |
+          set -euo pipefail
+          end_epoch="$(date +%s)"
+          duration="$(( end_epoch - START_EPOCH ))"
+          {
+            echo "## CI summary"
+            echo
+            echo "- Outcome: ${{ job.status }}"
+            echo "- Duration (seconds): ${duration}"
+            echo "- pnpm cache hit: ${PNPM_CACHE_HIT}"
+            echo "- Cargo cache: managed by Swatinem/rust-cache"
+          } >> "$GITHUB_STEP_SUMMARY"
