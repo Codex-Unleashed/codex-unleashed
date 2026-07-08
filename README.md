@@ -28,7 +28,6 @@ After extracting the archive, run the included `codex` binary the same way you w
 
 ## Why This Exists
 
-- `codex-fixes` maintains a small, auditable patch layer on top of upstream [`openai/codex`](https://github.com/openai/codex).
 - Important user-facing issues can take months to be fixed upstream, even when they are time-sensitive for real users and teams.
 - This project bridges that gap by shipping small, targeted fixes for issues that matter to users now, not months later.
 - Patches stay public, auditable, and temporary: they are carried here until the equivalent fix lands upstream, then removed.
