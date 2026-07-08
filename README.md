@@ -10,9 +10,10 @@ This repository is open source under the same license as upstream Codex. At the 
 
 ## What This Project Is
 
-- A public patch queue for funded Codex bug fixes.
+- A public patch queue for reviewed Codex bug fixes.
 - An automated binary distribution that rebuilds Codex when upstream publishes a new release.
 - A temporary maintenance layer intended to shrink over time as fixes are accepted upstream.
+- A source of completed downloadable patch files and patched binaries for OpenAI Codex.
 
 ## What This Project Is Not
 
@@ -23,18 +24,23 @@ This repository is open source under the same license as upstream Codex. At the 
 
 Developers who want to contribute code should maintain their own fork, privately or publicly, and carry their own patches.
 
-## How Issue Funding Works
+## How Early Access Works
 
-Public bug-fix work is funded through Polar.sh using issue-specific funding links.
+Public bug-fix work starts with review, scope approval, and non-binding buyer interest. Payment is only collected after a completed downloadable early-access build is ready for immediate delivery.
 
-- Each issue may have a dedicated Polar.sh product or checkout link.
-- Companies or individuals may use pay-what-you-want pricing to add money against the same issue.
-- Payments against the same issue are aggregated by the maintainer.
-- Once the necessary funding threshold is reached, the maintainer may fix the issue and collect all payments against that issue.
-- Funding pays for engineering work, not exclusive ownership of the fix.
-- All funded fixes are released publicly in this repository.
-- If a fix is infeasible, out of scope, or cannot be completed, the issue funding may be refunded.
-- The maintainer only replies to issues that have active issue funding, a serious funding inquiry, or a professional-services request.
+- New issues start as review requests, not payment requests.
+- The maintainer reviews the issue, confirms scope, and signs off on the definition of done before considering implementation here.
+- Interested buyers may comment `I am interested in purchasing early access at the specified price` to signal non-binding interest.
+- No payment is collected unless and until an early-access build containing the fix is complete and available for immediate delivery.
+- Once complete, the maintainer may create a dedicated Polar checkout link or invoice for early-access delivery.
+- Buyers receive immediate access to an early-access build containing the completed fix they purchased, up to 30 days before public release.
+- Early-access builds may also contain other unreleased fixes.
+- Payment buys early access to a completed build containing the requested fix, not exclusive ownership of any specific preview build contents.
+- Customers are purchasing immediate access to completed downloadable software artifacts, not consulting services, sponsorships, or crowdfunding access.
+- Each purchased fix is added to the public release no later than 30 days after first customer delivery of that fix.
+- If an early-access build is purchased, the resulting fix is ultimately released publicly in this repository.
+- If a completed early-access build is infeasible, out of scope, or cannot be delivered responsibly, no payment is collected for that build.
+- The maintainer only replies to issues that have credible buyer interest, a serious purchase inquiry, or a professional-services request.
 
 Polar: `TODO_POLAR_URL`
 
@@ -44,21 +50,23 @@ For private or professional engagements: â€œContact the maintainer for a quote.â
 
 Use this path when you need private triage, custom patching, support terms, SLA terms, or a scoped engineering engagement.
 
-## How To Fund An Issue
+## How To Request Early Access
 
-1. Open an issue funding request or quote-request issue using the provided template.
-2. Add the Polar.sh funding link, target amount, or explain the funding status.
-3. Wait for maintainer review if the issue has active funding, is quote-related, or is otherwise maintainer-approved.
+1. Open an issue request or quote-request issue using the provided template.
+2. Wait for maintainer review and scope approval.
+3. If you want to signal non-binding interest, comment `I am interested in purchasing early access at the specified price`.
+4. If the maintainer completes an early-access build containing that fix, use the maintainer-provided Polar checkout link or invoice to purchase immediate access to the downloadable build.
 
-Unfunded issues may be closed automatically with a polite explanation of the policy.
+Issues without credible buyer interest may be closed automatically with a polite explanation of the policy.
 
 ## How Professional Services Work
 
-Professional services are handled separately from public issue funding.
+Professional services are handled separately from public early-access builds.
 
 - Additional warranties, support terms, SLA commitments, or expanded liability coverage are available only by separate written agreement.
 - Contact the maintainer for a quote.
-- Public issue funding does not create exclusive access to a fix.
+- Early-access purchases do not create exclusive access to a fix or to every other unreleased fix that may appear in the same preview build.
+- For larger company engagements, the maintainer may prefer Polar invoice or quote-aligned billing after scope approval.
 
 ## How Releases Work
 
@@ -110,10 +118,11 @@ This repository currently uses a conservative GitHub-hosted fallback matrix wher
 
 This repository is provided on an `AS IS` basis, without warranty.
 
-- Liability is limited to the amount of the issue funding paid for the specific issue.
+- Liability is limited to the amount paid for the specific early-access build or related professional-services engagement.
 - No warranty is provided, including merchantability, fitness for a particular purpose, or non-infringement, unless separately agreed in writing.
 - No consequential damages, business interruption damages, lost profits, lost revenue, lost data, or similar damages are accepted.
 - Professional services with additional protections are available separately by written agreement.
+- Payment processor, merchant-of-record, refund, and chargeback fees may reduce or eliminate the amount retained by the maintainer even when a payment is later refunded.
 
 This summary is plain-language guidance, not legal advice. The maintainer should review these terms with a lawyer before relying on them.
 

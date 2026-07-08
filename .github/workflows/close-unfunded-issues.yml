@@ -42,9 +42,9 @@ jobs:
             const comment = [
               "Thanks for the report.",
               "",
-              "This repository only keeps issues open for active issue funding, quote requests, professional-services requests, or issues explicitly approved by the maintainer.",
+              "This repository only keeps issues open for credible buyer interest, quote requests, professional-services requests, or issues explicitly approved by the maintainer.",
               "",
-              "If you want this issue considered here, please add Polar.sh issue funding to it or contact the maintainer for a quote.",
+              "If you want this issue considered here, request maintainer review first and comment `I am interested in purchasing early access at the specified price` if you want to signal non-binding buyer interest. If an early-access build containing the fix becomes available, the maintainer may publish a Polar checkout link or invoice for immediate delivery up to 30 days before public release. You can also contact the maintainer for a quote.",
               "",
               "- Polar: TODO_POLAR_URL",
               "- GitHub: @cowwoc",

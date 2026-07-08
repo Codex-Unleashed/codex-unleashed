@@ -1,15 +1,20 @@
 # Maintainer Guide
 
-## Add A New Funded Patch
+## Add A New Patch
 
-1. Confirm the issue has active issue funding, a quote approval, or explicit maintainer approval.
-2. Create the fix against a clean checkout of upstream `openai/codex`.
-3. Create `patches/<owner>/<repo>/issue-<number>/`.
-4. Add a `README.md` describing the issue reference, scope of the fix, and any upstream links.
-5. Generate one or more patch files with `git format-patch` and store them in that directory.
-6. Prefer `0001-<short-slug>.patch` naming over `change.patch`.
-7. Update any issue labels such as `funded`, `quote-request`, `professional-services`, or `maintainer-approved` as needed.
-8. Track the issue's funding threshold and aggregate all Polar payments that map to the same issue.
+1. Review the issue and confirm the scope, definition of done, and whether this repository should carry the fix.
+2. Publish the reviewed scope, estimated early-access price, and the buyer-interest comment text on the issue.
+3. Do not publish a payment link until an early-access build containing the fix is complete and available for immediate delivery.
+4. Confirm the issue has credible buyer interest, a quote approval, or explicit maintainer approval.
+5. Create the fix against a clean checkout of upstream `openai/codex`.
+6. Create `patches/<owner>/<repo>/issue-<number>/`.
+7. Add a `README.md` describing the issue reference, scope of the fix, and any upstream links.
+8. Generate one or more patch files with `git format-patch` and store them in that directory.
+9. Prefer `0001-<short-slug>.patch` naming over `change.patch`.
+10. Update any issue labels such as `funded`, `quote-request`, `professional-services`, or `maintainer-approved` as needed.
+11. Once an early-access build containing the fix is ready, create the Polar checkout link or invoice and deliver immediate access to the buyer after payment.
+12. Early-access builds may contain multiple unreleased fixes; do not promise buyers exclusive access to only one isolated patch unless you are prepared to ship separate builds.
+13. Add each purchased fix to the public release flow for this repository no later than 30 days after first customer delivery of that fix.
 
 ## Test It
 
@@ -32,9 +37,11 @@
 3. Re-run `ci.yml` to confirm remaining patches still apply cleanly.
 4. Note the removal in the next release notes.
 
-## Refunds And Quote Requests
+## Early Access, Refunds, And Quote Requests
 
-- Refund issue funding when the requested fix is infeasible, out of scope, blocked by upstream constraints, or otherwise cannot be completed responsibly.
+- Do not collect payment until an early-access build containing the fix is complete and available for immediate delivery.
+- If a completed early-access build must later be refunded, assume non-refundable payment-processing or merchant-of-record fees may still be lost.
+- Assume chargebacks may deduct both the original transaction amount and any separate processor dispute fee unless the dispute is later won.
 - Keep quote requests out of public issue discussion when sensitive scope or commercial details are involved.
 - For paid professional work with custom terms, use a separate written agreement covering support, warranty, SLA, and liability terms.
 

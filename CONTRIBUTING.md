@@ -4,17 +4,17 @@ This repository does not accept pull requests.
 
 ## Why
 
-`codex-fixes` is intended to remain a narrowly-scoped public patch queue for funded Codex fixes, not a general fork.
+`codex-fixes` is intended to remain a narrowly-scoped public patch queue for reviewed Codex fixes, not a general fork.
 
 ## What To Do Instead
 
 - If you need your own changes, fork this repository privately or publicly and maintain your own patch queue.
-- If you want a bug fixed here, open an issue funding request or a quote request.
+- If you want a bug fixed here, open an issue request or a quote request.
 - If you need private or commercial engineering work, contact the maintainer for a quote.
 
 ## Patch Policy
 
-- Every issue directory must correspond to one repository-relative funded issue.
+- Every issue directory must correspond to one repository-relative reviewed issue.
 - Every patch must contain exactly one logical bug fix.
 - Patches should be generated with `git format-patch`.
 - Patches should remain small, auditable, and removable after upstream fixes the issue.

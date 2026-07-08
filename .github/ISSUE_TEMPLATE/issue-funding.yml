@@ -1,13 +1,13 @@
-name: Issue funding request / quote request
-description: Report a Codex bug for issue funding, a funding inquiry, or a quote request.
-title: "[issue-funding]: "
+name: Early-access request / quote request
+description: Report a Codex bug for review, early-access interest, a funding inquiry, or a quote request.
+title: "[early-access]: "
 labels:
   - needs-triage
 body:
   - type: markdown
     attributes:
       value: |
-        Unfunded issues may be closed without reply. Use Polar.sh issue funding for public work, or request a quote for private/professional work.
+        Issues without credible buyer interest may be closed without reply. The maintainer reviews issues before implementation. If an early-access build containing the fix is completed, the maintainer may publish a Polar checkout link or invoice for immediate delivery, or you may request a quote for private/professional work.
   - type: input
     id: summary
     attributes:
@@ -74,33 +74,39 @@ body:
     validations:
       required: true
   - type: dropdown
-    id: funding_status
+    id: interest_status
     attributes:
-      label: Issue funding status
+      label: Early-access interest status
       options:
-        - Already funded on Polar.sh
-        - Funding in progress
-        - Funding target not yet reached
+        - Awaiting maintainer review
+        - Interested in purchasing early access at the specified price
         - Requesting a quote first
         - Professional-services inquiry
+        - Maintainer-approved for implementation
     validations:
       required: true
   - type: input
-    id: polar_link
+    id: estimated_price
     attributes:
-      label: Polar.sh link or note
-      description: Provide the Polar.sh funding URL, target amount, or explain the funding plan.
-      placeholder: TODO_POLAR_URL
-    validations:
-      required: true
-  - type: input
-    id: funding_target
-    attributes:
-      label: Funding target
-      description: Optional threshold at which work should begin.
+      label: Estimated early-access price
+      description: Suggested price for early access to the completed private build, if one is produced.
       placeholder: USD 3000
     validations:
       required: false
+  - type: input
+    id: polar_link
+    attributes:
+      label: Polar link or note
+      description: Leave blank until a completed private early-access build exists. After that, provide the Polar checkout URL, invoice link, or delivery note.
+      placeholder: TODO_POLAR_URL
+    validations:
+      required: false
+  - type: markdown
+    attributes:
+      value: |
+        Buyer-interest comment for approved issues:
+
+        `I am interested in purchasing early access at the specified price`
   - type: dropdown
     id: quote_request
     attributes:
@@ -114,7 +120,7 @@ body:
     id: contact_information
     attributes:
       label: Contact information
-      description: Share the preferred way to contact you about funding or scope.
+      description: Share the preferred way to contact you about scope, early access, or a quote.
       placeholder: GitHub handle, email, company name, or other contact details.
     validations:
       required: true
@@ -123,15 +129,19 @@ body:
     attributes:
       label: Agreement
       options:
-        - label: I understand that unfunded issues may be closed without reply.
+        - label: I understand that issues without credible buyer interest may be closed without reply.
           required: true
-        - label: I understand that fixes are public and issue funding does not grant exclusive ownership of the fix.
+        - label: I understand that no payment is collected unless and until the private early-access build is complete and available for immediate delivery.
           required: true
-        - label: I understand that multiple companies or individuals may fund the same issue and those payments may be aggregated.
+        - label: I understand that buyers may comment "I am interested in purchasing early access at the specified price" only as a non-binding signal of interest.
           required: true
-        - label: I understand that once the necessary funding threshold is reached, the maintainer may fix the issue and collect all payments against that issue.
+        - label: I understand that a completed early-access build containing this fix may be sold up to 30 days before the same fix is added to the public release.
           required: true
-        - label: I understand that liability is limited to the amount of the issue funding paid for the issue.
+        - label: I understand that early-access builds may also contain other unreleased fixes.
+          required: true
+        - label: I understand that fixes are public and early-access purchases do not grant exclusive ownership of the fix.
+          required: true
+        - label: I understand that liability is limited to the amount paid for the specific early-access build or related engagement.
           required: true
         - label: I understand there is no warranty unless separately agreed in writing.
           required: true

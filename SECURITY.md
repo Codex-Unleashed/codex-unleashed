@@ -31,13 +31,14 @@ Please include:
 ## Response Policy
 
 - The maintainer does not guarantee response times for unpaid reports.
-- Security work with active issue funding or professional-services engagements receives priority.
+- Security work with credible buyer interest or professional-services engagements receives priority.
+- The maintainer may require review and scope approval before publishing any Polar checkout link or invoice for a security-related fix.
 - If the issue belongs upstream, the maintainer may decline to fix it here or may carry a temporary patch until upstream resolves it.
 
 ## Trust Model
 
 - Patch files should stay small, auditable, and removable.
-- Each patch directory should map to one repository-relative funded issue.
+- Each patch directory should map to one repository-relative reviewed issue.
 - Releases should publish checksums and identify the exact upstream commit and patch list used.
 
 ## Disclaimer
