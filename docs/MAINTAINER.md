@@ -42,6 +42,7 @@
 - Do not collect payment until an early-access build containing the fix is complete and available for immediate delivery.
 - If a completed early-access build must later be refunded, assume non-refundable payment-processing or merchant-of-record fees may still be lost.
 - Assume chargebacks may deduct both the original transaction amount and any separate processor dispute fee unless the dispute is later won.
+- Keep the repository variable `EARLY_ACCESS_FIXES_COUNT` in sync if you want the README badge to reflect the current private early-access fix count.
 - Keep quote requests out of public issue discussion when sensitive scope or commercial details are involved.
 - For paid professional work with custom terms, use a separate written agreement covering support, warranty, SLA, and liability terms.
 

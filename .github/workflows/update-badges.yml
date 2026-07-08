@@ -1,0 +1,63 @@
+name: Update badges
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+  schedule:
+    - cron: "17 4 * * *"
+
+permissions:
+  contents: write
+
+jobs:
+  update-badges:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Generate badge JSON
+        shell: bash
+        env:
+          EARLY_ACCESS_FIXES_COUNT: ${{ vars.EARLY_ACCESS_FIXES_COUNT }}
+        run: |
+          set -euo pipefail
+
+          mkdir -p docs/badges
+
+          public_fixes="$(find patches -mindepth 3 -maxdepth 3 -type d -name 'issue-*' | wc -l | tr -d ' ')"
+          early_access_fixes="${EARLY_ACCESS_FIXES_COUNT:-0}"
+
+          cat > docs/badges/public-fixes.json <<EOF
+          {
+            "schemaVersion": 1,
+            "label": "public fixes",
+            "message": "${public_fixes}",
+            "color": "2ea44f"
+          }
+          EOF
+
+          cat > docs/badges/early-access-fixes.json <<EOF
+          {
+            "schemaVersion": 1,
+            "label": "early-access fixes",
+            "message": "${early_access_fixes}",
+            "color": "1f6feb"
+          }
+          EOF
+
+      - name: Commit badge updates
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- docs/badges/public-fixes.json docs/badges/early-access-fixes.json; then
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/badges/public-fixes.json docs/badges/early-access-fixes.json
+          git commit -m "Update README badges"
+          git push

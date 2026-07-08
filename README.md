@@ -6,23 +6,16 @@ A community-maintained patch queue and patched binary distribution for OpenAI Co
 
 [![Releases](https://img.shields.io/github/v/release/cowwoc/codex-fixes?display_name=tag)](https://github.com/cowwoc/codex-fixes/releases)
 [![License](https://img.shields.io/github/license/cowwoc/codex-fixes)](https://github.com/cowwoc/codex-fixes/blob/main/LICENSE)
+[![Public fixes](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/cowwoc/codex-fixes/main/docs/badges/public-fixes.json)](https://github.com/cowwoc/codex-fixes/tree/main/patches)
+[![Early-Access fixes](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/cowwoc/codex-fixes/main/docs/badges/early-access-fixes.json)](https://github.com/cowwoc/codex-fixes/issues)
 
 ```text
-openai/codex release
-        |
-        v
-   codex-fixes patch queue
-        |
-        v
-private early-access build
-        |
-        v
- public patched release
+Fix count comparison
+
+Upstream release        = upstream fixes only
+Public patched release = upstream + public patch queue
+Early-access build     = upstream + public patch queue + private unreleased fixes
 ```
-
-`codex-fixes` maintains a small, auditable patch layer on top of upstream [`openai/codex`](https://github.com/openai/codex). The intent is to publish temporary bug-fix builds quickly, then remove patches once the fixes land upstream.
-
-This repository is open source under the same license as upstream Codex. At the time of writing, upstream `openai/codex` is licensed under Apache License 2.0.
 
 ## Quickstart
 
@@ -34,19 +27,25 @@ The exact filenames follow the published release artifacts for the current upstr
 
 After extracting the archive, run the included `codex` binary the same way you would run upstream Codex.
 
-### Verify what you downloaded
+## Release Comparison
 
-Every release includes:
+```text
+                     Additional fixes relative to upstream
 
-- upstream Codex version and commit SHA
-- applied patch list
-- build date
-- checksums
+Upstream release     [                    0                    ]
+Public release       [         public patch queue             ]
+Early access         [ public patch queue + private fixes     ]
+```
 
-Check the release notes and checksums before trusting a binary.
+- `Upstream release`: only fixes already shipped by `openai/codex`
+- `Public release`: upstream plus every fix already published in this repository
+- `Early access`: public release plus any completed unreleased fixes still inside the 30-day early-access window
 
 ## Why This Exists
 
+- `codex-fixes` maintains a small, auditable patch layer on top of upstream [`openai/codex`](https://github.com/openai/codex).
+- The intent is to publish temporary bug-fix builds quickly, then remove patches once the fixes land upstream.
+- This repository is open source under the same license as upstream Codex. At the time of writing, upstream `openai/codex` is licensed under Apache License 2.0.
 - Upstream issues do not always get fixed on your timeline.
 - This repository carries small, auditable Codex fixes until upstream absorbs them.
 - Buyers can get early access to completed patched builds before those fixes roll into the public release.
