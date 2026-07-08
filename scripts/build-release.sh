@@ -123,7 +123,7 @@ configure_rusty_v8_overrides() {
   version="$(python3 .github/scripts/rusty_v8_bazel.py resolved-v8-crate-version)"
   release_tag="rusty-v8-v${version}"
   base_url="https://github.com/openai/codex/releases/download/${release_tag}"
-  binding_dir="${TMPDIR:-/tmp}/rusty_v8/${target}"
+  binding_dir="${RUSTY_V8_CACHE_DIR:-${TMPDIR:-/tmp}/rusty_v8}/${target}"
   if [[ "${target}" == *windows* ]]; then
     archive_name="rusty_v8_release_${target}.lib.gz"
   else

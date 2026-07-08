@@ -1,5 +1,5 @@
 name: prepare-patched-upstream
-description: Clone upstream Codex, apply local patches, and install upstream dependencies.
+description: Clone upstream Codex and apply local patches.
 
 inputs:
   upstream-ref:
@@ -51,12 +51,3 @@ runs:
       run: |
         set -euo pipefail
         "${GITHUB_WORKSPACE}/scripts/apply-patches.sh" "${GITHUB_WORKSPACE}/${CHECKOUT_PATH}"
-
-    - name: Install upstream dependencies
-      shell: bash
-      env:
-        CHECKOUT_PATH: ${{ inputs.checkout-path }}
-      run: |
-        set -euo pipefail
-        cd "${GITHUB_WORKSPACE}/${CHECKOUT_PATH}"
-        pnpm install --frozen-lockfile

@@ -61,6 +61,28 @@ jobs:
           upstream-ref: ${{ inputs.upstream_ref || 'main' }}
           fallback-to-default-branch: "true"
 
+      - name: Cache pnpm store
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: upstream/pnpm-lock.yaml
+
+      - name: Cache Cargo artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            upstream/codex-rs -> target
+          key: ci-upstream-repo-checks
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Install upstream dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd upstream
+          pnpm install --frozen-lockfile
+
       - name: Verify codex-rs Cargo manifests inherit workspace settings
         run: ./scripts/run-upstream-repo-checks.sh upstream
 

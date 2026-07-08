@@ -122,6 +122,28 @@ jobs:
         with:
           upstream-ref: ${{ needs.prepare.outputs.upstream_tag }}
 
+      - name: Cache pnpm store
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: upstream/pnpm-lock.yaml
+
+      - name: Cache Cargo artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            upstream/codex-rs -> target
+          key: verify-${{ needs.prepare.outputs.upstream_tag }}
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Install upstream dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd upstream
+          pnpm install --frozen-lockfile
+
       - name: Verify codex-rs Cargo manifests inherit workspace settings
         run: ./scripts/run-upstream-repo-checks.sh upstream
 
@@ -240,6 +262,20 @@ jobs:
           version: 0.14.0
           use-cache: false
 
+      - name: Prepare Linux APT cache directories
+        if: ${{ runner.os == 'Linux' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo mkdir -p /var/cache/apt/archives /var/lib/apt/lists
+          sudo chown -R "$USER:$USER" /var/cache/apt /var/lib/apt/lists
+      - name: Restore APT cache
+        if: ${{ runner.os == 'Linux' }}
+        uses: actions/cache/restore@v4
+        with:
+          path: /var/cache/apt
+          key: apt-${{ runner.os }}-${{ matrix.target }}-v1
+
       - name: Install Linux build dependencies
         if: ${{ runner.os == 'Linux' }}
         shell: bash
@@ -251,6 +287,35 @@ jobs:
       - uses: ./.github/actions/prepare-patched-upstream
         with:
           upstream-ref: ${{ needs.prepare.outputs.upstream_tag }}
+
+      - name: Cache pnpm store
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: upstream/pnpm-lock.yaml
+
+      - name: Cache Cargo artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            upstream/codex-rs -> target
+          key: build-${{ matrix.target }}-${{ needs.prepare.outputs.upstream_tag }}
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Cache rusty_v8 artifacts
+        if: ${{ !contains(matrix.target, 'windows') }}
+        uses: actions/cache@v4
+        with:
+          path: .cache/rusty_v8
+          key: rusty-v8-${{ matrix.target }}-${{ needs.prepare.outputs.upstream_tag }}
+
+      - name: Install upstream dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd upstream
+          pnpm install --frozen-lockfile
 
       - name: Use hermetic Cargo home (musl)
         if: ${{ contains(matrix.target, 'linux-musl') }}
@@ -289,6 +354,7 @@ jobs:
           export UPSTREAM_TARGET="${{ matrix.target }}"
           export UPSTREAM_BINARIES="${{ matrix.binaries }}"
           export SKIP_UPSTREAM_TESTS=1
+          export RUSTY_V8_CACHE_DIR="${GITHUB_WORKSPACE}/.cache/rusty_v8"
           ./scripts/build-release.sh upstream "dist/${{ matrix.target }}"
 
       - name: Upload Cargo timings
@@ -304,6 +370,14 @@ jobs:
           name: release-${{ matrix.artifact_name }}
           path: dist/${{ matrix.target }}/
           if-no-files-found: error
+
+      - name: Save APT cache
+        if: ${{ always() && !cancelled() && runner.os == 'Linux' }}
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: /var/cache/apt
+          key: apt-${{ runner.os }}-${{ matrix.target }}-v1
 
   publish:
     needs:
