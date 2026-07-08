@@ -38,14 +38,12 @@ After extracting the archive, run the included `codex` binary the same way you w
 
 ## Early Access Policy
 
-Completed fixes may be offered first through Polar as downloadable early-access builds.
+Users who pay for early access receive downloadable builds containing completed fixes up to 30 days before public release.
 
-- Payment is only collected after a completed downloadable build is ready for immediate delivery.
-- Buyers receive access to an early-access build containing the purchased fix up to 30 days before public release.
-- Early-access builds may also contain other unreleased fixes.
-- Customers are purchasing immediate access to completed downloadable software artifacts.
-- Each purchased fix is added to the public release no later than 30 days after first customer delivery of that fix.
-- The maintainer only replies to issues that have credible buyer interest, a serious purchase inquiry, or a separate commercial inquiry.
+- You only pay once a completed downloadable build is ready.
+- Early-access builds may also contain other unreleased fixes, so early access is not exclusive to a single patch.
+- Any fix sold through early access is added to the public release no later than 30 days after first customer delivery.
+- Serious purchase inquiries and larger commercial requests are handled directly by the maintainer.
 
 Polar: `TODO_POLAR_URL`
 
