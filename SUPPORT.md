@@ -28,7 +28,7 @@ If the maintainer completes an early-access build containing the fix, Polar is u
 
 ## Private Work
 
-If you need private triage, custom work, support terms, SLA commitments, or other commercial terms: “Contact the maintainer for a quote.”
+If you need private triage, custom work, support terms, SLA commitments, or other commercial terms, contact the maintainer for a separate written agreement and quote.
 
 ## Contact
 

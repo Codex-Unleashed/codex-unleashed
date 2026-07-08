@@ -23,6 +23,13 @@ Operational rules:
 - remove the patch once upstream ships the fix
 - keep the patch history easy to review against upstream
 
+Security / trust model:
+
+- patch files are public and intended to be small, auditable, and removable
+- each issue directory is repository-relative, for example `patches/openai/codex/issue-1234/`
+- consumers should review patch diffs, workflow definitions, and release notes before trusting a binary
+- security reports should follow [SECURITY.md](../SECURITY.md)
+
 Why `0001-<short-slug>.patch`:
 
 - it stays readable in release notes and logs
