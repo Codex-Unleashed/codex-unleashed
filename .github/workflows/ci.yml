@@ -32,6 +32,25 @@ jobs:
         shell: bash
         run: git config --global core.autocrlf false
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Set up Zig
+        if: matrix.os == 'ubuntu-latest'
+        uses: mlugg/setup-zig@v1
+        with:
+          version: 0.14.0
+
       - name: Clone upstream Codex
         shell: bash
         env:
