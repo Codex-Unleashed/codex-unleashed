@@ -24,4 +24,4 @@ Because this repository does not accept pull requests and has a funding-gated su
 Report conduct concerns to:
 
 - GitHub: `@cowwoc`
-- Email: `TODO@example.com`
+- Email: `cowwoc2020@gmail.com`

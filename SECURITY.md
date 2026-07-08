@@ -17,7 +17,7 @@ Upstream Codex vulnerabilities should also be reported to upstream when appropri
 For security-sensitive matters, contact the maintainer privately:
 
 - GitHub: `@cowwoc`
-- Email: `TODO@example.com`
+- Email: `cowwoc2020@gmail.com`
 
 Please include:
 

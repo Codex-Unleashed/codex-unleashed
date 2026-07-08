@@ -4,7 +4,7 @@ This repository does not accept pull requests.
 
 ## Why
 
-`codex-patches` is intended to remain a narrowly-scoped public patch queue for funded Codex fixes, not a general fork.
+`codex-fixes` is intended to remain a narrowly-scoped public patch queue for funded Codex fixes, not a general fork.
 
 ## What To Do Instead
 
@@ -22,5 +22,5 @@ This repository does not accept pull requests.
 ## Funding / Contact
 
 - GitHub: `@cowwoc`
-- Email: `TODO@example.com`
+- Email: `cowwoc2020@gmail.com`
 - Polar: `TODO_POLAR_URL`

@@ -4,7 +4,7 @@ A community-maintained patch queue and patched binary distribution for OpenAI Co
 
 > Warning: Unofficial, not affiliated with OpenAI.
 
-`codex-patches` maintains a small, auditable patch layer on top of upstream [`openai/codex`](https://github.com/openai/codex). The intent is to publish temporary bug-fix builds quickly, then remove patches once the fixes land upstream.
+`codex-fixes` maintains a small, auditable patch layer on top of upstream [`openai/codex`](https://github.com/openai/codex). The intent is to publish temporary bug-fix builds quickly, then remove patches once the fixes land upstream.
 
 This repository is open source under the same license as upstream Codex. At the time of writing, upstream `openai/codex` is licensed under Apache License 2.0.
 
@@ -121,5 +121,5 @@ This project uses the same license as upstream Codex. See [LICENSE](LICENSE).
 ## Contact
 
 - GitHub: [@cowwoc](https://github.com/cowwoc)
-- Email: `TODO@example.com`
+- Email: `cowwoc2020@gmail.com`
 - Polar: `TODO_POLAR_URL`

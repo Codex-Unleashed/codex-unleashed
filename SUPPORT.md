@@ -29,4 +29,4 @@ If you need private triage, custom work, support terms, SLA commitments, or othe
 ## Contact
 
 - GitHub: `@cowwoc`
-- Email: `TODO@example.com`
+- Email: `cowwoc2020@gmail.com`

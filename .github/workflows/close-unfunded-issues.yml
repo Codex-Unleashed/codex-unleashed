@@ -48,7 +48,7 @@ jobs:
               "",
               "- Polar: TODO_POLAR_URL",
               "- GitHub: @cowwoc",
-              "- Email: TODO@example.com",
+              "- Email: cowwoc2020@gmail.com",
             ].join("\n");
 
             await github.rest.issues.createComment({
