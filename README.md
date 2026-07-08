@@ -19,6 +19,13 @@ The exact filenames follow the published release artifacts for the current upstr
 
 After extracting the archive, run the included `codex` binary the same way you would run upstream Codex.
 
+## Get A Fix Faster
+
+- Public release: use the latest [GitHub Release](https://github.com/cowwoc/codex-fixes/releases/latest).
+- Early access: buyers can receive completed fixes up to 30 days before public release.
+- New fix request: open an issue and describe the bug, scope, and business impact.
+- Quote request: contact the maintainer directly for private or larger commercial work.
+
 ## Why This Exists
 
 - `codex-fixes` maintains a small, auditable patch layer on top of upstream [`openai/codex`](https://github.com/openai/codex).
@@ -41,9 +48,8 @@ After extracting the archive, run the included `codex` binary the same way you w
 Users who pay for early access receive downloadable builds containing completed fixes up to 30 days before public release.
 
 - You only pay once a completed downloadable build is ready.
-- Early-access builds may also contain other unreleased fixes, so early access is not exclusive to a single patch.
 - Any fix sold through early access is added to the public release no later than 30 days after first customer delivery.
-- Serious purchase inquiries and larger commercial requests are handled directly by the maintainer.
+- Full terms: [Commercial Terms](docs/COMMERCIAL_TERMS.md)
 
 Polar: `TODO_POLAR_URL`
 
@@ -69,26 +75,12 @@ Patched releases append a patch release number to the upstream version:
 
 The `.0` release is the first patched build for that upstream version. Higher suffixes are rebuilds or subsequent patched republish events for the same upstream version.
 
-## Professional Services
+## Policies
 
-Custom commercial work is handled separately from public early-access builds.
-
-- Additional warranties, support terms, SLA commitments, or expanded liability coverage are available only by separate written agreement.
-- Contact the maintainer for a quote.
-- Early-access purchases do not create exclusive access to a fix or to every other unreleased fix that may appear in the same preview build.
-- For larger company engagements, the maintainer may prefer Polar invoice or quote-aligned billing after scope approval.
-
-## Liability / Warranty Disclaimer
-
-This repository is provided on an `AS IS` basis, without warranty.
-
-- Liability is limited to the amount paid for the specific early-access build or related separate commercial engagement.
-- No warranty is provided, including merchantability, fitness for a particular purpose, or non-infringement, unless separately agreed in writing.
-- No consequential damages, business interruption damages, lost profits, lost revenue, lost data, or similar damages are accepted.
-- Additional protections are available only by separate written agreement.
-- Payment processor, merchant-of-record, refund, and chargeback fees may reduce or eliminate the amount retained by the maintainer even when a payment is later refunded.
-
-This summary is plain-language guidance, not legal advice. The maintainer should review these terms with a lawyer before relying on them.
+- Commercial terms: [docs/COMMERCIAL_TERMS.md](docs/COMMERCIAL_TERMS.md)
+- Support policy: [SUPPORT.md](SUPPORT.md)
+- Security policy: [SECURITY.md](SECURITY.md)
+- Patch queue rules: [patches/README.md](patches/README.md)
 
 ## License
 
