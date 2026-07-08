@@ -28,6 +28,7 @@ jobs:
       patched_tag: ${{ steps.prepare.outputs.patched_tag }}
       build_date: ${{ steps.prepare.outputs.build_date }}
       patch_files: ${{ steps.prepare.outputs.patch_files }}
+      supported_targets: ${{ steps.prepare.outputs.supported_targets }}
     steps:
       - name: Checkout patch repo
         uses: actions/checkout@v4
@@ -71,6 +72,7 @@ jobs:
           git clone --depth 1 --branch "${upstream_tag}" https://github.com/openai/codex.git upstream
           upstream_sha="$(git -C upstream rev-parse HEAD)"
           patch_files="$(find patches -maxdepth 1 -type f -name '*.patch' -printf '%f ' | sed 's/[[:space:]]*$//')"
+          supported_targets="x86_64-unknown-linux-musl, aarch64-unknown-linux-musl, x86_64-apple-darwin, aarch64-apple-darwin, x86_64-pc-windows-msvc, aarch64-pc-windows-msvc"
 
           echo "should_release=true" >> "${GITHUB_OUTPUT}"
           echo "upstream_tag=${upstream_tag}" >> "${GITHUB_OUTPUT}"
@@ -78,21 +80,97 @@ jobs:
           echo "patched_tag=${patched_tag}" >> "${GITHUB_OUTPUT}"
           echo "build_date=${build_date}" >> "${GITHUB_OUTPUT}"
           echo "patch_files=${patch_files}" >> "${GITHUB_OUTPUT}"
+          echo "supported_targets=${supported_targets}" >> "${GITHUB_OUTPUT}"
 
-  build:
+  verify:
     needs: prepare
     if: needs.prepare.outputs.should_release == 'true'
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os:
-          - ubuntu-latest
-          - macos-latest
-          - windows-latest
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout patch repo
         uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Set up Zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.14.0
+          use-cache: false
+
+      - name: Clone upstream tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --depth 1 --branch "${{ needs.prepare.outputs.upstream_tag }}" https://github.com/openai/codex.git upstream
+
+      - name: Verify patches and upstream checks
+        shell: bash
+        env:
+          UPSTREAM_TEST_COMMAND: ${{ vars.UPSTREAM_TEST_COMMAND }}
+          UPSTREAM_BUILD_COMMAND: ${{ vars.UPSTREAM_BUILD_COMMAND }}
+          UPSTREAM_ARTIFACT_GLOB: ${{ vars.UPSTREAM_ARTIFACT_GLOB }}
+          UPSTREAM_TARGET: x86_64-unknown-linux-musl
+          SKIP_ARTIFACT_COLLECTION: "1"
+        run: |
+          set -euo pipefail
+          ./scripts/build-release.sh upstream dist
+  build:
+    needs:
+      - prepare
+      - verify
+    if: needs.prepare.outputs.should_release == 'true'
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+          - runner: ubuntu-latest
+            target: aarch64-unknown-linux-musl
+          - runner: macos-latest
+            target: x86_64-apple-darwin
+          - runner: macos-latest
+            target: aarch64-apple-darwin
+          - runner: windows-latest
+            target: x86_64-pc-windows-msvc
+          - runner: windows-latest
+            target: aarch64-pc-windows-msvc
+    steps:
+      - name: Checkout patch repo
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Set up Zig
+        if: ${{ contains(matrix.target, 'linux-musl') }}
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.14.0
+          use-cache: false
 
       - name: Clone upstream tag
         shell: bash
@@ -106,16 +184,17 @@ jobs:
           UPSTREAM_TEST_COMMAND: ${{ vars.UPSTREAM_TEST_COMMAND }}
           UPSTREAM_BUILD_COMMAND: ${{ vars.UPSTREAM_BUILD_COMMAND }}
           UPSTREAM_ARTIFACT_GLOB: ${{ vars.UPSTREAM_ARTIFACT_GLOB }}
+          UPSTREAM_TARGET: ${{ matrix.target }}
+          SKIP_UPSTREAM_TESTS: "1"
         run: |
           set -euo pipefail
-          # TODO: verify that this matrix matches the exact upstream release targets.
-          ./scripts/build-release.sh upstream "dist/${{ matrix.os }}"
+          ./scripts/build-release.sh upstream "dist/${{ matrix.target }}"
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: release-${{ matrix.os }}
-          path: dist/${{ matrix.os }}/
+          name: release-${{ matrix.target }}
+          path: dist/${{ matrix.target }}/
           if-no-files-found: error
 
   publish:
@@ -150,7 +229,7 @@ jobs:
           - Upstream commit SHA: ${{ needs.prepare.outputs.upstream_sha }}
           - Patch files applied: ${patch_files}
           - Build date: ${{ needs.prepare.outputs.build_date }}
-          - Supported platforms: Linux, macOS, Windows
+          - Supported platforms: ${{ needs.prepare.outputs.supported_targets }}
           - Checksums: Included in uploaded \`SHA256SUMS\` files
 
           This is an unofficial patch release and is not affiliated with or endorsed by OpenAI.

@@ -25,6 +25,7 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 target_dir="$(cd "${1}" && pwd)"
 output_dir="${2:-${repo_root}/dist}"
 output_dir="$(mkdir -p "${output_dir}" && cd "${output_dir}" && pwd)"
+build_target="${UPSTREAM_TARGET:-}"
 
 if [[ ! -d "${target_dir}/.git" ]]; then
   echo "ERROR: target is not a git checkout: ${target_dir}" >&2
@@ -35,7 +36,9 @@ fi
 
 pushd "${target_dir}" >/dev/null
 
-if [[ -n "${UPSTREAM_TEST_COMMAND:-}" ]]; then
+if [[ "${SKIP_UPSTREAM_TESTS:-0}" == "1" ]]; then
+  echo "Skipping upstream tests because SKIP_UPSTREAM_TESTS=1"
+elif [[ -n "${UPSTREAM_TEST_COMMAND:-}" ]]; then
   echo "Running UPSTREAM_TEST_COMMAND"
   bash -lc "${UPSTREAM_TEST_COMMAND}"
 elif [[ -f pnpm-lock.yaml && -f codex-rs/Cargo.toml ]]; then
@@ -89,7 +92,46 @@ if [[ -n "${UPSTREAM_BUILD_COMMAND:-}" ]]; then
   bash -lc "${UPSTREAM_BUILD_COMMAND}"
 elif [[ -f pnpm-lock.yaml && -f codex-rs/Cargo.toml ]]; then
   echo "Detected current upstream Codex layout; running conservative default build."
-  cargo build --manifest-path ./codex-rs/Cargo.toml --release --bin codex
+  if [[ -z "${build_target}" ]]; then
+    case "$(uname -s)" in
+      Linux)
+        build_target="x86_64-unknown-linux-musl"
+        ;;
+      Darwin)
+        build_target="$(uname -m)-apple-darwin"
+        ;;
+      MINGW*|MSYS*|CYGWIN*|Windows_NT)
+        if [[ "$(uname -m)" == "aarch64" ]]; then
+          build_target="aarch64-pc-windows-msvc"
+        else
+          build_target="x86_64-pc-windows-msvc"
+        fi
+        ;;
+      *)
+        echo "ERROR: unable to infer default UPSTREAM_TARGET for $(uname -s)" >&2
+        exit 1
+        ;;
+    esac
+  fi
+
+  if ! command -v rustup >/dev/null 2>&1; then
+    echo "ERROR: rustup is required for target-aware current upstream Codex builds" >&2
+    exit 1
+  fi
+  rustup target add "${build_target}"
+
+  if [[ "${build_target}" == *"-unknown-linux-musl" ]]; then
+    if ! command -v zig >/dev/null 2>&1; then
+      echo "ERROR: zig is required for conservative musl cross-builds" >&2
+      exit 1
+    fi
+    if ! command -v cargo-zigbuild >/dev/null 2>&1; then
+      cargo install --locked cargo-zigbuild
+    fi
+    cargo zigbuild --manifest-path ./codex-rs/Cargo.toml --release --target "${build_target}" --bin codex
+  else
+    cargo build --manifest-path ./codex-rs/Cargo.toml --release --target "${build_target}" --bin codex
+  fi
 else
   echo "TODO: set UPSTREAM_BUILD_COMMAND to the exact upstream release build command." >&2
   exit 1
@@ -114,11 +156,16 @@ elif [[ "${SKIP_ARTIFACT_COLLECTION:-0}" == "1" ]]; then
   exit 0
 elif [[ -f pnpm-lock.yaml && -f codex-rs/Cargo.toml ]]; then
   echo "Detected current upstream Codex layout; collecting conservative default artifacts."
+  artifact_target="${build_target}"
+  if [[ -z "${artifact_target}" ]]; then
+    echo "ERROR: artifact collection requires UPSTREAM_TARGET or an inferred build target" >&2
+    exit 1
+  fi
   shopt -s nullglob
-  artifacts=(codex-rs/target/release/codex*)
+  artifacts=(codex-rs/target/"${artifact_target}"/release/codex*)
   shopt -u nullglob
   if [[ ${#artifacts[@]} -eq 0 ]]; then
-    echo "ERROR: no default artifacts found under codex-rs/target/release/" >&2
+    echo "ERROR: no default artifacts found under codex-rs/target/${artifact_target}/release/" >&2
     exit 1
   fi
   for artifact in "${artifacts[@]}"; do
