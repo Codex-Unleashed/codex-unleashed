@@ -1,0 +1,62 @@
+name: prepare-patched-upstream
+description: Clone upstream Codex, apply local patches, and install upstream dependencies.
+
+inputs:
+  upstream-ref:
+    description: Upstream git ref or tag to check out.
+    required: true
+  upstream-repo:
+    description: Upstream GitHub repository.
+    required: false
+    default: openai/codex
+  checkout-path:
+    description: Checkout directory relative to the workspace root.
+    required: false
+    default: upstream
+  fallback-to-default-branch:
+    description: Fall back to the upstream default branch if the requested ref cannot be cloned.
+    required: false
+    default: "false"
+
+runs:
+  using: composite
+  steps:
+    - name: Clone upstream repository
+      shell: bash
+      env:
+        UPSTREAM_REF: ${{ inputs.upstream-ref }}
+        UPSTREAM_REPO: ${{ inputs.upstream-repo }}
+        CHECKOUT_PATH: ${{ inputs.checkout-path }}
+        FALLBACK_TO_DEFAULT_BRANCH: ${{ inputs.fallback-to-default-branch }}
+      run: |
+        set -euo pipefail
+
+        repo_url="https://github.com/${UPSTREAM_REPO}.git"
+        rm -rf "${CHECKOUT_PATH}"
+
+        if git clone --depth 1 --branch "${UPSTREAM_REF}" "${repo_url}" "${CHECKOUT_PATH}"; then
+          :
+        elif [[ "${FALLBACK_TO_DEFAULT_BRANCH}" == "true" ]]; then
+          echo "Falling back to the upstream default branch because ${UPSTREAM_REF} could not be cloned."
+          git clone --depth 1 "${repo_url}" "${CHECKOUT_PATH}"
+        else
+          echo "ERROR: failed to clone ${UPSTREAM_REPO} at ${UPSTREAM_REF}" >&2
+          exit 1
+        fi
+
+    - name: Apply local patches
+      shell: bash
+      env:
+        CHECKOUT_PATH: ${{ inputs.checkout-path }}
+      run: |
+        set -euo pipefail
+        "${GITHUB_WORKSPACE}/scripts/apply-patches.sh" "${GITHUB_WORKSPACE}/${CHECKOUT_PATH}"
+
+    - name: Install upstream dependencies
+      shell: bash
+      env:
+        CHECKOUT_PATH: ${{ inputs.checkout-path }}
+      run: |
+        set -euo pipefail
+        cd "${GITHUB_WORKSPACE}/${CHECKOUT_PATH}"
+        pnpm install --frozen-lockfile

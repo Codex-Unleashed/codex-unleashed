@@ -180,6 +180,31 @@ run_with_heartbeat() {
   return "${command_status}"
 }
 
+prepare_linux_bwrap_digest() {
+  local target="${1:-}"
+  local release_dir=""
+  local bwrap_path=""
+  local digest=""
+
+  if [[ -z "${target}" ]]; then
+    echo "ERROR: prepare_linux_bwrap_digest requires a target triple" >&2
+    exit 1
+  fi
+
+  release_dir="codex-rs/target/${target}/release"
+  run_with_heartbeat cargo build --manifest-path ./codex-rs/Cargo.toml --target "${target}" --release --timings --bin bwrap
+
+  bwrap_path="${release_dir}/bwrap"
+  if [[ ! -f "${bwrap_path}" ]]; then
+    echo "ERROR: expected bwrap artifact not found at ${bwrap_path}" >&2
+    exit 1
+  fi
+
+  strip --strip-debug --strip-unneeded "${bwrap_path}"
+  digest="$(sha256sum "${bwrap_path}" | awk '{print $1}')"
+  export CODEX_BWRAP_SHA256="${digest}"
+}
+
 if [[ ! -d "${target_dir}/.git" ]]; then
   echo "ERROR: target is not a git checkout: ${target_dir}" >&2
   exit 1
@@ -225,15 +250,7 @@ elif is_current_upstream_layout; then
     configure_rusty_v8_overrides "${test_target}"
   fi
   pnpm install --frozen-lockfile
-  python3 .github/scripts/verify_cargo_workspace_manifests.py
-  python3 .github/scripts/verify_tui_core_boundary.py
-  python3 .github/scripts/verify_bazel_clippy_lints.py
-  python3 -m unittest discover -s scripts/codex_package -p 'test_*.py'
-  if [[ -d scripts/install ]]; then
-    python3 -m unittest discover -s scripts/install -p 'test_*.py'
-  fi
-  just fmt-check
-  pnpm run format
+  "${repo_root}/scripts/run-upstream-repo-checks.sh" .
 elif [[ -f pnpm-lock.yaml ]]; then
   echo "Detected pnpm-lock.yaml; running conservative pnpm checks."
   if command -v pnpm >/dev/null 2>&1; then
@@ -292,6 +309,9 @@ elif is_current_upstream_layout; then
   release_binaries="$(default_release_binaries "${build_target}")"
   build_args=(--manifest-path ./codex-rs/Cargo.toml --release --target "${build_target}")
   for binary in ${release_binaries}; do
+    if [[ "${binary}" == "bwrap" ]]; then
+      continue
+    fi
     build_args+=(--bin "${binary}")
   done
 
@@ -299,6 +319,11 @@ elif is_current_upstream_layout; then
     export LIBSQLITE3_FLAGS=SQLITE_DISABLE_INTRINSIC
   fi
 
+  if [[ "${build_target}" == *linux* && " ${release_binaries} " == *" bwrap "* ]]; then
+    prepare_linux_bwrap_digest "${build_target}"
+  fi
+
+  build_args+=(--timings)
   run_with_heartbeat cargo build "${build_args[@]}"
 else
   echo "TODO: set UPSTREAM_BUILD_COMMAND to the exact upstream release build command." >&2

@@ -90,13 +90,17 @@ jobs:
       - name: Checkout patch repo
         uses: actions/checkout@v4
 
-      - name: Set up pnpm
+      - uses: ./.github/actions/setup-ci
+        with:
+          workspace-root: upstream
+
+      - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
           version: 10
           run_install: false
 
-      - name: Set up Node.js
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -104,50 +108,22 @@ jobs:
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Install just
-        uses: taiki-e/install-action@44c6d64aa62cd779e873306675c7a58e86d6d532
-        with:
-          tool: just@1.51.0
-
       - name: Install uv
         uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b
         with:
           version: "0.11.3"
-
-      - name: Install DotSlash
-        uses: facebook/install-dotslash@1e4e7b3e07eaca387acb98f1d4720e0bee8dbb6a
 
       - name: Set up Zig
         uses: mlugg/setup-zig@v1
         with:
           version: 0.14.0
 
-      - name: Clone upstream tag
-        shell: bash
-        run: |
-          set -euo pipefail
-          git clone --depth 1 --branch "${{ needs.prepare.outputs.upstream_tag }}" https://github.com/openai/codex.git upstream
+      - uses: ./.github/actions/prepare-patched-upstream
+        with:
+          upstream-ref: ${{ needs.prepare.outputs.upstream_tag }}
 
-      - name: Install upstream dependencies
-        shell: bash
-        run: |
-          set -euo pipefail
-          cd upstream
-          pnpm install --frozen-lockfile
-
-      - name: Verify patches and upstream checks
-        shell: bash
-        env:
-          UPSTREAM_TEST_COMMAND: ${{ vars.UPSTREAM_TEST_COMMAND }}
-          UPSTREAM_BUILD_COMMAND: ${{ vars.UPSTREAM_BUILD_COMMAND }}
-          UPSTREAM_ARTIFACT_GLOB: ${{ vars.UPSTREAM_ARTIFACT_GLOB }}
-          UPSTREAM_TARGET: x86_64-unknown-linux-musl
-          SKIP_UPSTREAM_BUILD: "1"
-          SKIP_ARTIFACT_COLLECTION: "1"
-        run: |
-          set -euo pipefail
-          export UPSTREAM_TEST_COMMAND="${UPSTREAM_TEST_COMMAND:-python3 .github/scripts/verify_cargo_workspace_manifests.py && python3 .github/scripts/verify_tui_core_boundary.py && python3 .github/scripts/verify_bazel_clippy_lints.py && python3 -m unittest discover -s scripts/codex_package -p 'test_*.py' && python3 -m unittest discover -s scripts/install -p 'test_*.py' && just fmt-check && pnpm run format}"
-          ./scripts/build-release.sh upstream dist
+      - name: Verify codex-rs Cargo manifests inherit workspace settings
+        run: ./scripts/run-upstream-repo-checks.sh upstream
 
   build:
     needs:
@@ -155,6 +131,10 @@ jobs:
       - verify
     if: needs.prepare.outputs.should_release == 'true'
     runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    env:
+      CARGO_PROFILE_RELEASE_SPLIT_DEBUGINFO: ${{ contains(matrix.target, 'apple-darwin') && 'packed' || 'off' }}
+      CARGO_NET_GIT_FETCH_WITH_CLI: "true"
     strategy:
       fail-fast: false
       matrix:
@@ -164,27 +144,39 @@ jobs:
           # the matching runner pool and signing flow are available here.
           - runner: ubuntu-latest
             target: x86_64-unknown-linux-musl
+            bundle: primary
+            artifact_name: x86_64-unknown-linux-musl
             binaries: "codex codex-code-mode-host codex-responses-api-proxy bwrap"
           - runner: macos-15
             target: x86_64-apple-darwin
+            bundle: primary
+            artifact_name: x86_64-apple-darwin
             binaries: "codex codex-code-mode-host codex-responses-api-proxy"
           - runner: macos-15
             target: aarch64-apple-darwin
+            bundle: primary
+            artifact_name: aarch64-apple-darwin
             binaries: "codex codex-code-mode-host codex-responses-api-proxy"
           - runner: windows-latest
             target: x86_64-pc-windows-msvc
+            bundle: primary
+            artifact_name: x86_64-pc-windows-msvc
             binaries: "codex codex-code-mode-host codex-responses-api-proxy"
     steps:
       - name: Checkout patch repo
         uses: actions/checkout@v4
 
-      - name: Set up pnpm
+      - uses: ./.github/actions/setup-ci
+        with:
+          workspace-root: upstream
+
+      - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
           version: 10
           run_install: false
 
-      - name: Set up Node.js
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -194,25 +186,59 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
-      - name: Install just
-        uses: taiki-e/install-action@44c6d64aa62cd779e873306675c7a58e86d6d532
-        with:
-          tool: just@1.51.0
+      - name: Print runner specs (Linux)
+        if: ${{ runner.os == 'Linux' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cpu_model="$(lscpu | awk -F: '/Model name/ {gsub(/^[ \t]+/, "", $2); print $2; exit}')"
+          total_ram="$(awk '/MemTotal/ {printf "%.1f GiB\n", $2 / 1024 / 1024}' /proc/meminfo)"
+          echo "Runner: ${RUNNER_NAME:-unknown}"
+          echo "OS: $(uname -a)"
+          echo "CPU model: ${cpu_model}"
+          echo "Logical CPUs: $(nproc)"
+          echo "Total RAM: ${total_ram}"
+          echo "Disk usage:"
+          df -h .
 
-      - name: Install DotSlash
-        uses: facebook/install-dotslash@1e4e7b3e07eaca387acb98f1d4720e0bee8dbb6a
+      - name: Print runner specs (macOS)
+        if: ${{ runner.os == 'macOS' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          total_ram="$(sysctl -n hw.memsize | awk '{printf \"%.1f GiB\\n\", $1 / 1024 / 1024 / 1024}')"
+          echo "Runner: ${RUNNER_NAME:-unknown}"
+          echo "OS: $(sw_vers -productName) $(sw_vers -productVersion)"
+          echo "Hardware model: $(sysctl -n hw.model)"
+          echo "CPU architecture: $(uname -m)"
+          echo "Logical CPUs: $(sysctl -n hw.logicalcpu)"
+          echo "Physical CPUs: $(sysctl -n hw.physicalcpu)"
+          echo "Total RAM: ${total_ram}"
+          echo "Disk usage:"
+          df -h .
+
+      - name: Print runner specs (Windows)
+        if: ${{ runner.os == 'Windows' }}
+        shell: powershell
+        run: |
+          $computer = Get-CimInstance Win32_ComputerSystem
+          $cpu = Get-CimInstance Win32_Processor | Select-Object -First 1
+          $ramGiB = [math]::Round($computer.TotalPhysicalMemory / 1GB, 1)
+          Write-Host "Runner: $env:RUNNER_NAME"
+          Write-Host "OS: $([System.Environment]::OSVersion.VersionString)"
+          Write-Host "CPU: $($cpu.Name)"
+          Write-Host "Logical CPUs: $($computer.NumberOfLogicalProcessors)"
+          Write-Host "Physical CPUs: $($computer.NumberOfProcessors)"
+          Write-Host "Total RAM: $ramGiB GiB"
+          Write-Host "Disk usage:"
+          Get-PSDrive -PSProvider FileSystem | Format-Table -AutoSize Name, @{Name='Size(GB)';Expression={[math]::Round(($_.Used + $_.Free) / 1GB, 1)}}, @{Name='Free(GB)';Expression={[math]::Round($_.Free / 1GB, 1)}}
 
       - name: Set up Zig
         if: ${{ contains(matrix.target, 'linux-musl') }}
         uses: mlugg/setup-zig@v1
         with:
           version: 0.14.0
-
-      - name: Clone upstream tag
-        shell: bash
-        run: |
-          set -euo pipefail
-          git clone --depth 1 --branch "${{ needs.prepare.outputs.upstream_tag }}" https://github.com/openai/codex.git upstream
+          use-cache: false
 
       - name: Install Linux build dependencies
         if: ${{ runner.os == 'Linux' }}
@@ -220,7 +246,22 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update -y
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends binutils pkg-config libcap-dev ca-certificates curl musl-tools g++ clang libc++-dev libc++abi-dev lld xz-utils
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends binutils pkg-config libcap-dev
+
+      - uses: ./.github/actions/prepare-patched-upstream
+        with:
+          upstream-ref: ${{ needs.prepare.outputs.upstream_tag }}
+
+      - name: Use hermetic Cargo home (musl)
+        if: ${{ contains(matrix.target, 'linux-musl') }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo_home="${GITHUB_WORKSPACE}/.cargo-home"
+          mkdir -p "${cargo_home}/bin"
+          echo "CARGO_HOME=${cargo_home}" >> "$GITHUB_ENV"
+          echo "${cargo_home}/bin" >> "$GITHUB_PATH"
+          : > "${cargo_home}/config.toml"
 
       - name: Configure Linux musl toolchain
         if: ${{ contains(matrix.target, 'linux-musl') }}
@@ -231,30 +272,36 @@ jobs:
           set -euo pipefail
           bash upstream/.github/scripts/install-musl-build-tools.sh
 
-      - name: Install upstream dependencies
+      - name: Disable aws-lc jitter entropy (musl)
+        if: ${{ contains(matrix.target, 'linux-musl') }}
         shell: bash
         run: |
           set -euo pipefail
-          cd upstream
-          pnpm install --frozen-lockfile
+          echo "AWS_LC_SYS_NO_JITTER_ENTROPY=1" >> "$GITHUB_ENV"
+          target_no_jitter="AWS_LC_SYS_NO_JITTER_ENTROPY_${{ matrix.target }}"
+          target_no_jitter="${target_no_jitter//-/_}"
+          echo "${target_no_jitter}=1" >> "$GITHUB_ENV"
 
       - name: Build patched release
         shell: bash
-        env:
-          UPSTREAM_TEST_COMMAND: ${{ vars.UPSTREAM_TEST_COMMAND }}
-          UPSTREAM_BUILD_COMMAND: ${{ vars.UPSTREAM_BUILD_COMMAND }}
-          UPSTREAM_ARTIFACT_GLOB: ${{ vars.UPSTREAM_ARTIFACT_GLOB }}
-          UPSTREAM_TARGET: ${{ matrix.target }}
-          UPSTREAM_BINARIES: ${{ matrix.binaries }}
-          SKIP_UPSTREAM_TESTS: "1"
         run: |
           set -euo pipefail
+          export UPSTREAM_TARGET="${{ matrix.target }}"
+          export UPSTREAM_BINARIES="${{ matrix.binaries }}"
+          export SKIP_UPSTREAM_TESTS=1
           ./scripts/build-release.sh upstream "dist/${{ matrix.target }}"
+
+      - name: Upload Cargo timings
+        uses: actions/upload-artifact@v4
+        with:
+          name: cargo-timings-${{ matrix.target }}-${{ matrix.bundle }}
+          path: upstream/codex-rs/target/**/cargo-timings/cargo-timing.html
+          if-no-files-found: warn
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: release-${{ matrix.target }}
+          name: release-${{ matrix.artifact_name }}
           path: dist/${{ matrix.target }}/
           if-no-files-found: error
 
