@@ -38,8 +38,6 @@ After extracting the archive, run the included `codex` binary the same way you w
 - Reviewed fixes only.
 - No pull requests.
 - No unpaid support queue.
-- Public patch files and public release notes.
-- Temporary fixes with the goal of eventual upstream removal.
 
 ## Early Access Policy
 
