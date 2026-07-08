@@ -158,6 +158,28 @@ should_configure_rusty_v8_overrides() {
   [[ -n "${target}" && "${target}" != *windows* ]]
 }
 
+run_with_heartbeat() {
+  local heartbeat_pid=""
+
+  (
+    while true; do
+      sleep "${HEARTBEAT_INTERVAL_SECONDS:-60}"
+      printf 'Heartbeat: command still running at %s\n' "$(date -u +%FT%TZ)"
+    done
+  ) &
+  heartbeat_pid=$!
+
+  set +e
+  "$@"
+  local command_status=$?
+  set -e
+
+  kill "${heartbeat_pid}" >/dev/null 2>&1 || true
+  wait "${heartbeat_pid}" 2>/dev/null || true
+
+  return "${command_status}"
+}
+
 if [[ ! -d "${target_dir}/.git" ]]; then
   echo "ERROR: target is not a git checkout: ${target_dir}" >&2
   exit 1
@@ -277,7 +299,7 @@ elif is_current_upstream_layout; then
     export LIBSQLITE3_FLAGS=SQLITE_DISABLE_INTRINSIC
   fi
 
-  cargo build "${build_args[@]}"
+  run_with_heartbeat cargo build "${build_args[@]}"
 else
   echo "TODO: set UPSTREAM_BUILD_COMMAND to the exact upstream release build command." >&2
   exit 1
