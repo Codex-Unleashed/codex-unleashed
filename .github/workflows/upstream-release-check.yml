@@ -176,11 +176,12 @@ jobs:
             echo "- Cargo cache: managed by Swatinem/rust-cache"
           } >> "$GITHUB_STEP_SUMMARY"
 
-  build:
+  build-unix:
     needs:
       - prepare
       - verify
     if: needs.prepare.outputs.should_release == 'true'
+    name: Build - ${{ matrix.runner }} - ${{ matrix.target }} - ${{ matrix.bundle }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 90
     env:
@@ -190,9 +191,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # TODO: upstream also publishes Linux arm64 and Windows arm64 bundles
-          # on custom runners. Keep this matrix to GitHub-hosted targets until
-          # the matching runner pool and signing flow are available here.
           - runner: ubuntu-latest
             target: x86_64-unknown-linux-musl
             bundle: primary
@@ -222,21 +220,6 @@ jobs:
             target: aarch64-apple-darwin
             bundle: app-server
             artifact_name: aarch64-apple-darwin-app-server
-            binaries: "codex-app-server codex-code-mode-host"
-          - runner: windows-latest
-            target: x86_64-pc-windows-msvc
-            bundle: primary
-            artifact_name: x86_64-pc-windows-msvc
-            binaries: "codex codex-code-mode-host codex-responses-api-proxy"
-          - runner: windows-latest
-            target: x86_64-pc-windows-msvc
-            bundle: helpers
-            artifact_name: x86_64-pc-windows-msvc-helpers
-            binaries: "codex-windows-sandbox-setup codex-command-runner"
-          - runner: windows-latest
-            target: x86_64-pc-windows-msvc
-            bundle: app-server
-            artifact_name: x86_64-pc-windows-msvc-app-server
             binaries: "codex-app-server codex-code-mode-host"
     steps:
       - name: Record job start
@@ -301,22 +284,6 @@ jobs:
           echo "Disk usage:"
           df -h .
 
-      - name: Print runner specs (Windows)
-        if: ${{ runner.os == 'Windows' }}
-        shell: powershell
-        run: |
-          $computer = Get-CimInstance Win32_ComputerSystem
-          $cpu = Get-CimInstance Win32_Processor | Select-Object -First 1
-          $ramGiB = [math]::Round($computer.TotalPhysicalMemory / 1GB, 1)
-          Write-Host "Runner: $env:RUNNER_NAME"
-          Write-Host "OS: $([System.Environment]::OSVersion.VersionString)"
-          Write-Host "CPU: $($cpu.Name)"
-          Write-Host "Logical CPUs: $($computer.NumberOfLogicalProcessors)"
-          Write-Host "Physical CPUs: $($computer.NumberOfProcessors)"
-          Write-Host "Total RAM: $ramGiB GiB"
-          Write-Host "Disk usage:"
-          Get-PSDrive -PSProvider FileSystem | Format-Table -AutoSize Name, @{Name='Size(GB)';Expression={[math]::Round(($_.Used + $_.Free) / 1GB, 1)}}, @{Name='Free(GB)';Expression={[math]::Round($_.Free / 1GB, 1)}}
-
       - name: Set up Zig
         if: ${{ contains(matrix.target, 'linux-musl') }}
         uses: mlugg/setup-zig@v1
@@ -331,6 +298,7 @@ jobs:
           set -euo pipefail
           sudo mkdir -p /var/cache/apt/archives /var/lib/apt/lists
           sudo chown -R "$USER:$USER" /var/cache/apt /var/lib/apt/lists
+
       - name: Restore APT cache
         if: ${{ runner.os == 'Linux' }}
         id: apt_cache
@@ -369,7 +337,6 @@ jobs:
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Cache rusty_v8 artifacts
-        if: ${{ !contains(matrix.target, 'windows') }}
         id: rusty_v8_cache
         uses: actions/cache@v4
         with:
@@ -426,14 +393,14 @@ jobs:
       - name: Upload Cargo timings
         uses: actions/upload-artifact@v4
         with:
-          name: cargo-timings-${{ matrix.target }}-${{ matrix.bundle }}
+          name: cargo-timings-rust-release-${{ matrix.target }}-${{ matrix.bundle }}
           path: upstream/codex-rs/target/**/cargo-timings/cargo-timing.html
           if-no-files-found: warn
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: release-${{ matrix.artifact_name }}
+          name: ${{ matrix.artifact_name }}
           path: dist/${{ matrix.target }}/
           if-no-files-found: error
 
@@ -444,7 +411,7 @@ jobs:
           START_EPOCH: ${{ steps.timing_start.outputs.epoch }}
           PNPM_CACHE_HIT: ${{ steps.pnpm_cache.outputs.cache-hit || 'false' }}
           APT_CACHE_HIT: ${{ steps.apt_cache.outputs.cache-hit || 'n/a' }}
-          RUSTY_V8_CACHE_HIT: ${{ steps.rusty_v8_cache.outputs.cache-hit || 'n/a' }}
+          RUSTY_V8_CACHE_HIT: ${{ steps.rusty_v8_cache.outputs.cache-hit || 'false' }}
         run: |
           set -euo pipefail
           end_epoch="$(date +%s)"
@@ -470,10 +437,247 @@ jobs:
           path: /var/cache/apt
           key: apt-${{ runner.os }}-${{ matrix.target }}-v1
 
+  build-windows-binaries:
+    needs:
+      - prepare
+      - verify
+    if: needs.prepare.outputs.should_release == 'true'
+    name: Build Windows binaries - ${{ matrix.target }} - ${{ matrix.bundle }}
+    runs-on: windows-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-pc-windows-msvc
+            bundle: primary
+            binaries: "codex codex-code-mode-host codex-responses-api-proxy"
+          - target: x86_64-pc-windows-msvc
+            bundle: helpers
+            binaries: "codex-windows-sandbox-setup codex-command-runner"
+          - target: x86_64-pc-windows-msvc
+            bundle: app-server
+            binaries: "codex-app-server codex-code-mode-host"
+    steps:
+      - name: Checkout patch repo
+        uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-ci
+
+      - name: Print runner specs (Windows)
+        shell: powershell
+        run: |
+          $computer = Get-CimInstance Win32_ComputerSystem
+          $cpu = Get-CimInstance Win32_Processor | Select-Object -First 1
+          $ramGiB = [math]::Round($computer.TotalPhysicalMemory / 1GB, 1)
+          Write-Host "Runner: $env:RUNNER_NAME"
+          Write-Host "OS: $([System.Environment]::OSVersion.VersionString)"
+          Write-Host "CPU: $($cpu.Name)"
+          Write-Host "Logical CPUs: $($computer.NumberOfLogicalProcessors)"
+          Write-Host "Physical CPUs: $($computer.NumberOfProcessors)"
+          Write-Host "Total RAM: $ramGiB GiB"
+          Write-Host "Disk usage:"
+          Get-PSDrive -PSProvider FileSystem | Format-Table -AutoSize Name, @{Name='Size(GB)';Expression={[math]::Round(($_.Used + $_.Free) / 1GB, 1)}}, @{Name='Free(GB)';Expression={[math]::Round($_.Free / 1GB, 1)}}
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Configure LLVM linker
+        uses: ./.github/actions/setup-msvc-env
+        with:
+          target: ${{ matrix.target }}
+
+      - uses: ./.github/actions/prepare-patched-upstream
+        with:
+          upstream-ref: ${{ needs.prepare.outputs.upstream_tag }}
+
+      - name: Cache Cargo artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            upstream/codex-rs -> target
+          key: build-windows-${{ matrix.target }}-${{ matrix.bundle }}-${{ needs.prepare.outputs.upstream_tag }}
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Cargo build (Windows binaries)
+        working-directory: upstream/codex-rs
+        shell: bash
+        run: |
+          set -euo pipefail
+          target="${{ matrix.target }}"
+          if [[ "$target" == "x86_64-pc-windows-msvc" ]]; then
+            export LIBSQLITE3_FLAGS=SQLITE_DISABLE_INTRINSIC
+          fi
+          build_args=()
+          for binary in ${{ matrix.binaries }}; do
+            build_args+=(--bin "$binary")
+          done
+          cargo build --target "$target" --release --timings "${build_args[@]}"
+
+      - name: Upload Cargo timings
+        uses: actions/upload-artifact@v4
+        with:
+          name: cargo-timings-rust-release-windows-${{ matrix.target }}-${{ matrix.bundle }}
+          path: ${{ env.CARGO_TARGET_DIR }}/**/cargo-timings/cargo-timing.html
+          if-no-files-found: warn
+
+      - name: Stage Windows binaries
+        working-directory: upstream/codex-rs
+        shell: bash
+        run: |
+          set -euo pipefail
+          release_dir="$CARGO_TARGET_DIR/${{ matrix.target }}/release"
+          output_dir="$release_dir/staged-${{ matrix.bundle }}"
+          mkdir -p "$output_dir"
+          for binary in ${{ matrix.binaries }}; do
+            pdb_name="${binary//-/_}"
+            pdb_path="$release_dir/${pdb_name}.pdb"
+            if [[ ! -f "$pdb_path" ]]; then
+              pdb_path="$release_dir/${binary}.pdb"
+            fi
+            cp "$release_dir/${binary}.exe" "$output_dir/${binary}.exe"
+            cp "$pdb_path" "$output_dir/${binary}.pdb"
+          done
+
+      - name: Upload Windows binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-binaries-${{ matrix.target }}-${{ matrix.bundle }}
+          path: |
+            ${{ env.CARGO_TARGET_DIR }}/${{ matrix.target }}/release/staged-${{ matrix.bundle }}/*
+
+  build-windows-symbols:
+    needs:
+      - build-windows-binaries
+      - prepare
+    if: needs.prepare.outputs.should_release == 'true'
+    name: Build Windows symbols - x86_64-pc-windows-msvc
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout patch repo
+        uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-ci
+
+      - name: Download prebuilt Windows binaries
+        uses: actions/download-artifact@v4
+        with:
+          pattern: windows-binaries-x86_64-pc-windows-msvc-*
+          merge-multiple: true
+          path: ${{ env.CARGO_TARGET_DIR }}/x86_64-pc-windows-msvc/release
+
+      - name: Build symbols archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p symbols-dist/x86_64-pc-windows-msvc
+          tar -C "$CARGO_TARGET_DIR/x86_64-pc-windows-msvc/release" \
+            -czf "symbols-dist/x86_64-pc-windows-msvc/x86_64-pc-windows-msvc-symbols.tar.gz" \
+            ./*.pdb
+
+      - name: Upload symbols archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: x86_64-pc-windows-msvc-symbols
+          path: symbols-dist/x86_64-pc-windows-msvc/*
+          if-no-files-found: error
+
+  build-windows-package:
+    needs:
+      - build-windows-binaries
+      - build-windows-symbols
+      - prepare
+    if: needs.prepare.outputs.should_release == 'true'
+    name: Build - windows-latest - x86_64-pc-windows-msvc
+    runs-on: windows-latest
+    env:
+      WINDOWS_BINARIES: "codex codex-code-mode-host codex-responses-api-proxy codex-windows-sandbox-setup codex-command-runner codex-app-server"
+    steps:
+      - name: Checkout patch repo
+        uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-ci
+
+      - name: Download prebuilt Windows primary binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-binaries-x86_64-pc-windows-msvc-primary
+          path: ${{ env.CARGO_TARGET_DIR }}/x86_64-pc-windows-msvc/release
+
+      - name: Download prebuilt Windows helper binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-binaries-x86_64-pc-windows-msvc-helpers
+          path: ${{ env.CARGO_TARGET_DIR }}/x86_64-pc-windows-msvc/release
+
+      - name: Download prebuilt Windows app-server binary
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-binaries-x86_64-pc-windows-msvc-app-server
+          path: ${{ env.CARGO_TARGET_DIR }}/x86_64-pc-windows-msvc/release
+
+      - name: Stage artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          dest="dist/x86_64-pc-windows-msvc"
+          mkdir -p "$dest"
+          for binary in ${WINDOWS_BINARIES}; do
+            cp "$CARGO_TARGET_DIR/x86_64-pc-windows-msvc/release/${binary}.exe" \
+              "$dest/${binary}-x86_64-pc-windows-msvc.exe"
+          done
+
+      - name: Compress artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          dest="dist/x86_64-pc-windows-msvc"
+          repo_root=$PWD
+          target="x86_64-pc-windows-msvc"
+          export dest repo_root target
+          printf '%s\0' "$dest"/* |
+            xargs -0 -n1 -P2 bash -c '
+            set -euo pipefail
+            f=$1
+            base="$(basename "$f")"
+            if [[ "$base" == *.tar.gz || "$base" == *.zip ]]; then
+              exit 0
+            fi
+            tar -C "$dest" -czf "$dest/${base}.tar.gz" "$base"
+            if [[ "$base" == "codex-${target}.exe" ]]; then
+              bundle_dir="$(mktemp -d)"
+              cp "$dest/$base" "$bundle_dir/$base"
+              cp "$dest/codex-command-runner-${target}.exe" "$bundle_dir/codex-command-runner.exe"
+              cp "$dest/codex-windows-sandbox-setup-${target}.exe" "$bundle_dir/codex-windows-sandbox-setup.exe"
+              (cd "$bundle_dir" && 7z a "$repo_root/$dest/${base}.zip" .)
+              rm -rf "$bundle_dir"
+            else
+              (cd "$dest" && 7z a "${base}.zip" "$base")
+            fi
+          ' _
+
+      - name: Generate checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd dist/x86_64-pc-windows-msvc
+          sha256sum ./* > SHA256SUMS
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: x86_64-pc-windows-msvc
+          path: dist/x86_64-pc-windows-msvc/
+          if-no-files-found: error
+
   publish:
     needs:
       - prepare
-      - build
+      - build-unix
+      - build-windows-package
+      - build-windows-symbols
     if: needs.prepare.outputs.should_release == 'true'
     runs-on: ubuntu-latest
     permissions:
