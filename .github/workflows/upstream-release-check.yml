@@ -206,7 +206,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          total_ram="$(sysctl -n hw.memsize | awk '{printf \"%.1f GiB\\n\", $1 / 1024 / 1024 / 1024}')"
+          total_ram="$(sysctl -n hw.memsize | awk '{printf "%.1f GiB\n", $1 / 1024 / 1024 / 1024}')"
           echo "Runner: ${RUNNER_NAME:-unknown}"
           echo "OS: $(sw_vers -productName) $(sw_vers -productVersion)"
           echo "Hardware model: $(sysctl -n hw.model)"
