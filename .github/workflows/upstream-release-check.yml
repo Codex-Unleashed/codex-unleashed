@@ -223,7 +223,7 @@ jobs:
     if: needs.prepare.outputs.should_release == 'true'
     name: Build - ${{ matrix.runner }} - ${{ matrix.target }} - ${{ matrix.bundle }}
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 90
+    timeout-minutes: ${{ matrix.timeout_minutes || 90 }}
     permissions:
       contents: read
       id-token: write
@@ -267,6 +267,7 @@ jobs:
           - runner: macos-15
             target: aarch64-apple-darwin
             bundle: primary
+            timeout_minutes: 120
             artifact_name: aarch64-apple-darwin
             binaries: "codex codex-code-mode-host codex-responses-api-proxy"
           - runner: macos-15
@@ -387,7 +388,7 @@ jobs:
           workspaces: |
             upstream/codex-rs -> target
           key: build-${{ matrix.target }}-${{ needs.prepare.outputs.upstream_tag }}
-          save-if: ${{ github.ref == 'refs/heads/main' }}
+          save-if: false
 
       - name: Cache rusty_v8 artifacts
         id: rusty_v8_cache
@@ -650,16 +651,18 @@ jobs:
     if: needs.prepare.outputs.should_release == 'true'
     name: Build Windows binaries - ${{ matrix.target }} - ${{ matrix.bundle }}
     runs-on: windows-latest
-    timeout-minutes: 90
+    timeout-minutes: ${{ matrix.timeout_minutes || 90 }}
     strategy:
       fail-fast: false
       matrix:
         include:
           - target: x86_64-pc-windows-msvc
             bundle: primary
+            timeout_minutes: 120
             binaries: "codex codex-code-mode-host codex-responses-api-proxy"
           - target: aarch64-pc-windows-msvc
             bundle: primary
+            timeout_minutes: 120
             binaries: "codex codex-code-mode-host codex-responses-api-proxy"
           - target: x86_64-pc-windows-msvc
             bundle: helpers
@@ -734,7 +737,7 @@ jobs:
           workspaces: |
             upstream/codex-rs -> target
           key: build-windows-${{ matrix.target }}-${{ matrix.bundle }}-${{ needs.prepare.outputs.upstream_tag }}
-          save-if: ${{ github.ref == 'refs/heads/main' }}
+          save-if: false
 
       - name: Cargo build (Windows binaries)
         working-directory: upstream/codex-rs
