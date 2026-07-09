@@ -8,10 +8,10 @@ import zipfile
 from collections.abc import Callable
 from pathlib import Path
 
-from .targets import REPO_ROOT
+from .targets import PATCH_REPO_ROOT
 
 
-ZSTD_DOTSLASH = REPO_ROOT / ".github" / "workflows" / "zstd"
+ZSTD_DOTSLASH = PATCH_REPO_ROOT / ".github" / "workflows" / "zstd"
 
 
 def write_archive(package_dir: Path, archive_path: Path, *, force: bool) -> None:

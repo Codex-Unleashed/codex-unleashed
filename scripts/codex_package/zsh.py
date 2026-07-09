@@ -3,11 +3,11 @@
 from pathlib import Path
 
 from .dotslash import fetch_dotslash_executable
-from .targets import REPO_ROOT
+from .targets import PATCH_REPO_ROOT
 from .targets import TargetSpec
 
 
-ZSH_MANIFEST = REPO_ROOT / "scripts" / "codex_package" / "codex-zsh"
+ZSH_MANIFEST = PATCH_REPO_ROOT / "scripts" / "codex_package" / "codex-zsh"
 ZSH_RESOURCE_PATH = Path("zsh") / "bin" / "zsh"
 
 

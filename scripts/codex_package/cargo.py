@@ -5,13 +5,13 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from .targets import REPO_ROOT
 from .targets import PackageVariant
 from .targets import TargetSpec
+from .targets import WORKSPACE_ROOT
 from .v8 import resolve_codex_v8_cargo_env
 
 
-CODEX_RS_ROOT = REPO_ROOT / "codex-rs"
+CODEX_RS_ROOT = WORKSPACE_ROOT / "codex-rs"
 
 
 @dataclass(frozen=True)

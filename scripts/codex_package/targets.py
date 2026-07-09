@@ -1,5 +1,6 @@
 """Supported package targets and default binary discovery."""
 
+import os
 import platform
 import stat
 from dataclasses import dataclass
@@ -7,7 +8,17 @@ from pathlib import Path
 
 
 SCRIPT_DIR = Path(__file__).resolve().parents[1]
-REPO_ROOT = SCRIPT_DIR.parent
+PATCH_REPO_ROOT = SCRIPT_DIR.parent
+
+
+def resolve_workspace_root() -> Path:
+    workspace_root = os.environ.get("CODEX_PACKAGE_WORKSPACE_ROOT")
+    if workspace_root:
+        return Path(workspace_root).resolve()
+    return PATCH_REPO_ROOT
+
+
+WORKSPACE_ROOT = resolve_workspace_root()
 
 
 @dataclass(frozen=True)

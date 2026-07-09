@@ -154,6 +154,13 @@ repo_root="${GITHUB_WORKSPACE:-}"
 if [[ -z "$repo_root" ]]; then
   repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 fi
+workspace_root="${CODEX_PACKAGE_WORKSPACE_ROOT:-}"
+if [[ -z "$workspace_root" && -d "${repo_root}/upstream/codex-rs" ]]; then
+  workspace_root="${repo_root}/upstream"
+fi
+if [[ -n "$workspace_root" ]]; then
+  export CODEX_PACKAGE_WORKSPACE_ROOT="$workspace_root"
+fi
 
 if command -v python3 >/dev/null 2>&1; then
   python_bin="python3"
