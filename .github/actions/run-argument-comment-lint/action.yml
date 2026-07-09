@@ -13,9 +13,11 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: ./.github/actions/setup-bazel-ci
+    - id: prepare_bazel
+      uses: ./.github/actions/prepare-bazel-ci
       with:
         target: ${{ inputs.target }}
+        cache-scope: argument-comment-lint
 
     - name: Install Linux sandbox build dependencies
       if: ${{ runner.os == 'Linux' }}
@@ -51,3 +53,11 @@ runs:
           --platforms=//:local_windows \
           --keep_going \
           --build_metadata=COMMIT_SHA=${GITHUB_SHA}
+
+    - name: Save Bazel repository cache
+      if: ${{ always() && !cancelled() }}
+      continue-on-error: true
+      uses: actions/cache/save@v4
+      with:
+        path: ${{ steps.prepare_bazel.outputs.repository-cache-path }}
+        key: ${{ steps.prepare_bazel.outputs.repository-cache-key }}

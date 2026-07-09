@@ -44,17 +44,17 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: ./.github/actions/setup-ci
-
       - uses: ./.github/actions/prepare-patched-upstream
         with:
           upstream-ref: ${{ inputs.upstream_ref || 'main' }}
           fallback-to-default-branch: "true"
 
-      - name: Set up Bazel
-        uses: ./.github/actions/setup-bazel-ci
+      - name: Prepare Bazel CI
+        id: prepare_bazel
+        uses: ./.github/actions/prepare-bazel-ci
         with:
           target: ${{ matrix.target }}
+          cache-scope: bazel-test
 
       - uses: actions/setup-python@v5
         with:
@@ -117,6 +117,14 @@ jobs:
           path: ${{ runner.temp }}/bazel-execution-logs
           if-no-files-found: ignore
 
+      - name: Save Bazel repository cache
+        if: always() && !cancelled()
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ steps.prepare_bazel.outputs.repository-cache-path }}
+          key: ${{ steps.prepare_bazel.outputs.repository-cache-key }}
+
       - name: Check for a clean worktree
         if: always() && !cancelled()
         uses: ./.github/actions/check-clean-worktree
@@ -138,17 +146,17 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: ./.github/actions/setup-ci
-
       - uses: ./.github/actions/prepare-patched-upstream
         with:
           upstream-ref: ${{ inputs.upstream_ref || 'main' }}
           fallback-to-default-branch: "true"
 
-      - name: Set up Bazel
-        uses: ./.github/actions/setup-bazel-ci
+      - name: Prepare Bazel CI
+        id: prepare_bazel
+        uses: ./.github/actions/prepare-bazel-ci
         with:
           target: x86_64-pc-windows-gnullvm
+          cache-scope: bazel-test-windows-shard
 
       - name: Test BuildBuddy Bazel wrapper
         if: matrix.shard == 1
@@ -201,6 +209,14 @@ jobs:
           path: ${{ runner.temp }}/bazel-execution-logs
           if-no-files-found: ignore
 
+      - name: Save Bazel repository cache
+        if: always() && !cancelled()
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ steps.prepare_bazel.outputs.repository-cache-path }}
+          key: ${{ steps.prepare_bazel.outputs.repository-cache-key }}
+
       - name: Check for a clean worktree
         if: always() && !cancelled()
         uses: ./.github/actions/check-clean-worktree
@@ -229,17 +245,17 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: ./.github/actions/setup-ci
-
       - uses: ./.github/actions/prepare-patched-upstream
         with:
           upstream-ref: ${{ inputs.upstream_ref || 'main' }}
           fallback-to-default-branch: "true"
 
-      - name: Set up Bazel
-        uses: ./.github/actions/setup-bazel-ci
+      - name: Prepare Bazel CI
+        id: prepare_bazel
+        uses: ./.github/actions/prepare-bazel-ci
         with:
           target: x86_64-pc-windows-gnullvm
+          cache-scope: bazel-test-windows-native-main
 
       - name: bazel test //...
         env:
@@ -277,6 +293,14 @@ jobs:
           path: ${{ runner.temp }}/bazel-execution-logs
           if-no-files-found: ignore
 
+      - name: Save Bazel repository cache
+        if: always() && !cancelled()
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ steps.prepare_bazel.outputs.repository-cache-path }}
+          key: ${{ steps.prepare_bazel.outputs.repository-cache-key }}
+
       - name: Check for a clean worktree
         if: always() && !cancelled()
         uses: ./.github/actions/check-clean-worktree
@@ -300,17 +324,17 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: ./.github/actions/setup-ci
-
       - uses: ./.github/actions/prepare-patched-upstream
         with:
           upstream-ref: ${{ inputs.upstream_ref || 'main' }}
           fallback-to-default-branch: "true"
 
-      - name: Set up Bazel
-        uses: ./.github/actions/setup-bazel-ci
+      - name: Prepare Bazel CI
+        id: prepare_bazel
+        uses: ./.github/actions/prepare-bazel-ci
         with:
           target: ${{ matrix.target }}
+          cache-scope: bazel-clippy
 
       - name: bazel build --config=clippy lint targets
         env:
@@ -368,6 +392,14 @@ jobs:
           path: ${{ runner.temp }}/bazel-execution-logs
           if-no-files-found: ignore
 
+      - name: Save Bazel repository cache
+        if: always() && !cancelled()
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ steps.prepare_bazel.outputs.repository-cache-path }}
+          key: ${{ steps.prepare_bazel.outputs.repository-cache-key }}
+
       - name: Check for a clean worktree
         if: always() && !cancelled()
         uses: ./.github/actions/check-clean-worktree
@@ -391,17 +423,17 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: ./.github/actions/setup-ci
-
       - uses: ./.github/actions/prepare-patched-upstream
         with:
           upstream-ref: ${{ inputs.upstream_ref || 'main' }}
           fallback-to-default-branch: "true"
 
-      - name: Set up Bazel
-        uses: ./.github/actions/setup-bazel-ci
+      - name: Prepare Bazel CI
+        id: prepare_bazel
+        uses: ./.github/actions/prepare-bazel-ci
         with:
           target: ${{ matrix.target }}
+          cache-scope: bazel-verify-release
 
       - name: Verify release build
         env:
@@ -455,6 +487,14 @@ jobs:
           name: bazel-execution-logs-verify-release-${{ matrix.target }}
           path: ${{ runner.temp }}/bazel-execution-logs
           if-no-files-found: ignore
+
+      - name: Save Bazel repository cache
+        if: always() && !cancelled()
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ steps.prepare_bazel.outputs.repository-cache-path }}
+          key: ${{ steps.prepare_bazel.outputs.repository-cache-key }}
 
       - name: Check for a clean worktree
         if: always() && !cancelled()
