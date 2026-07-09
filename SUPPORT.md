@@ -11,6 +11,7 @@ The maintainer only replies to:
 - quote requests
 - professional-services requests
 - issues explicitly marked `maintainer-approved`
+- issues opened by repository maintainers or collaborators
 
 Issues without credible buyer interest may be closed automatically without further discussion.
 

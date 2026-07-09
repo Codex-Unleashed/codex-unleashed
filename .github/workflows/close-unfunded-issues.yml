@@ -5,7 +5,6 @@ on:
     types:
       - opened
       - reopened
-      - edited
 
 permissions:
   issues: write
@@ -28,9 +27,22 @@ jobs:
             const issue = context.payload.issue;
             const labels = (issue.labels || []).map((label) => label.name);
             const allowedLabel = labels.find((label) => allowed.has(label));
+            const exemptAssociations = new Set([
+              "OWNER",
+              "MEMBER",
+              "COLLABORATOR",
+            ]);
+            const authorAssociation = issue.author_association || "NONE";
 
             if (allowedLabel) {
               core.info(`Issue kept open because it has label: ${allowedLabel}`);
+              return;
+            }
+
+            if (exemptAssociations.has(authorAssociation)) {
+              core.info(
+                `Issue kept open because author association is exempt: ${authorAssociation}`
+              );
               return;
             }
 
