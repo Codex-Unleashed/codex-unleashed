@@ -67,7 +67,7 @@ jobs:
               -q '.workflow_runs[]
                 | select(.name == env.GITHUB_WORKFLOW)
                 | .id' \
-              2>/dev/null || true
+              2>/dev/null | grep -E '^[0-9]+$' || true
           )"
           if [[ -n "${active_run_ids}" ]]; then
             oldest_active_run_id="$(printf '%s\n' "${active_run_ids}" | sort -n | head -n1)"
