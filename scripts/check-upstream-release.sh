@@ -19,8 +19,10 @@ repo="${1:-openai/codex}"
 api_path="repos/${repo}/releases/latest"
 
 if command -v gh >/dev/null 2>&1; then
-  gh api "${api_path}"
-  exit 0
+  if gh_output="$(gh api "${api_path}" 2>/dev/null)"; then
+    printf '%s\n' "${gh_output}"
+    exit 0
+  fi
 fi
 
 if ! command -v curl >/dev/null 2>&1; then
