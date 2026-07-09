@@ -53,7 +53,6 @@ jobs:
           INPUT_UPSTREAM_TAG: ${{ inputs.upstream_tag || '' }}
           INPUT_PATCH_RELEASE_NUMBER: ${{ inputs.patch_release_number || '' }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_API_URL: ${{ github.api_url }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_RUN_ID: ${{ github.run_id }}
           GITHUB_WORKFLOW: ${{ github.workflow }}
@@ -62,7 +61,7 @@ jobs:
 
           active_run_ids="$(
             gh api \
-              "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/actions/runs" \
+              "repos/${GITHUB_REPOSITORY}/actions/runs" \
               --paginate \
               -f status=in_progress \
               -q '.workflow_runs[]
