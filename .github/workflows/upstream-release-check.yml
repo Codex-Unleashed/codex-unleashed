@@ -30,6 +30,9 @@ concurrency:
 
 jobs:
   prepare:
+    permissions:
+      actions: read
+      contents: read
     runs-on: ubuntu-latest
     outputs:
       should_release: ${{ steps.prepare.outputs.should_release }}
