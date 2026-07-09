@@ -1048,6 +1048,9 @@ jobs:
           while IFS= read -r -d '' file; do
             parent="$(basename "$(dirname "$file")")"
             base="$(basename "$file")"
+            if [[ "$base" == "cargo-timing.html" ]]; then
+              continue
+            fi
             staged_name="$base"
             if [[ "$base" == "SHA256SUMS" ]]; then
               staged_name="SHA256SUMS-${parent}.txt"
