@@ -158,17 +158,17 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: ./.github/actions/setup-ci
-
       - uses: ./.github/actions/prepare-patched-upstream
         with:
           upstream-ref: ${{ inputs.upstream_ref || 'main' }}
           fallback-to-default-branch: "true"
 
-      - name: Set up Bazel
-        uses: ./.github/actions/setup-bazel-ci
+      - name: Prepare Bazel CI
+        id: prepare_bazel
+        uses: ./.github/actions/prepare-bazel-ci
         with:
           target: ${{ matrix.target }}
+          cache-scope: rusty-v8-release
 
       - uses: actions/setup-python@v5
         with:
@@ -277,6 +277,13 @@ jobs:
         with:
           name: rusty-v8-${{ needs.metadata.outputs.v8_version }}-${{ matrix.variant }}-${{ matrix.target }}
           path: upstream/dist/${{ matrix.target }}/*
+
+      - name: Save Bazel repository cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ steps.prepare_bazel.outputs.repository-cache-path }}
+          key: ${{ steps.prepare_bazel.outputs.repository-cache-key }}
 
   build-windows-source:
     name: Build ptrcomp-sandbox ${{ matrix.target }} from source
