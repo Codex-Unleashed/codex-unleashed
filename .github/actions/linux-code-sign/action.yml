@@ -35,6 +35,23 @@ runs:
           exit 1
         fi
 
+        oidc_url="${ACTIONS_ID_TOKEN_REQUEST_URL}"
+        separator='?'
+        if [[ "$oidc_url" == *\?* ]]; then
+          separator='&'
+        fi
+        sigstore_token="$(
+          curl -fsSL \
+            -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+            "${oidc_url}${separator}audience=sigstore" |
+            jq -r '.value'
+        )"
+        if [[ -z "$sigstore_token" || "$sigstore_token" == "null" ]]; then
+          echo "Failed to fetch GitHub OIDC token for Sigstore" >&2
+          exit 1
+        fi
+        export SIGSTORE_ID_TOKEN="$sigstore_token"
+
         for binary in ${BINARIES}; do
           artifact="${dest}/${binary}"
           if [[ ! -f "$artifact" ]]; then
