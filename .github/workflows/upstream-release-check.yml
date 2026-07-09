@@ -649,6 +649,10 @@ jobs:
 
       - uses: ./.github/actions/setup-ci
 
+      - uses: ./.github/actions/prepare-patched-upstream
+        with:
+          upstream-ref: ${{ needs.prepare.outputs.upstream_tag }}
+
       - name: Print runner specs (Windows)
         shell: powershell
         run: |
@@ -664,9 +668,22 @@ jobs:
           Write-Host "Disk usage:"
           Get-PSDrive -PSProvider FileSystem | Format-Table -AutoSize Name, @{Name='Size(GB)';Expression={[math]::Round(($_.Used + $_.Free) / 1GB, 1)}}, @{Name='Free(GB)';Expression={[math]::Round($_.Free / 1GB, 1)}}
 
+      - name: Resolve upstream Rust toolchain
+        id: rust_toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          channel="$(sed -n 's/^channel = "\(.*\)"$/\1/p' upstream/codex-rs/rust-toolchain.toml)"
+          if [[ -z "${channel}" ]]; then
+            echo "Failed to resolve channel from upstream/codex-rs/rust-toolchain.toml" >&2
+            exit 1
+          fi
+          echo "channel=${channel}" >> "$GITHUB_OUTPUT"
+
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
         with:
+          toolchain: ${{ steps.rust_toolchain.outputs.channel }}
           targets: ${{ matrix.target }}
 
       - name: Configure LLVM linker
@@ -678,12 +695,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          rustup target add "${{ matrix.target }}" --toolchain stable-x86_64-pc-windows-msvc
+          rustup target add "${{ matrix.target }}" --toolchain "${{ steps.rust_toolchain.outputs.channel }}"
           rustup target list --installed
-
-      - uses: ./.github/actions/prepare-patched-upstream
-        with:
-          upstream-ref: ${{ needs.prepare.outputs.upstream_tag }}
 
       - name: Cache Cargo artifacts
         uses: Swatinem/rust-cache@v2

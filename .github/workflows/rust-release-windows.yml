@@ -54,15 +54,28 @@ jobs:
         with:
           upstream-ref: ${{ inputs.upstream_tag }}
 
+      - name: Resolve upstream Rust toolchain
+        id: rust_toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          channel="$(sed -n 's/^channel = "\(.*\)"$/\1/p' upstream/codex-rs/rust-toolchain.toml)"
+          if [[ -z "${channel}" ]]; then
+            echo "Failed to resolve channel from upstream/codex-rs/rust-toolchain.toml" >&2
+            exit 1
+          fi
+          echo "channel=${channel}" >> "$GITHUB_OUTPUT"
+
       - uses: dtolnay/rust-toolchain@stable
         with:
+          toolchain: ${{ steps.rust_toolchain.outputs.channel }}
           targets: ${{ matrix.target }}
 
       - name: Ensure requested Rust target is installed
         shell: bash
         run: |
           set -euo pipefail
-          rustup target add "${{ matrix.target }}" --toolchain stable-x86_64-pc-windows-msvc
+          rustup target add "${{ matrix.target }}" --toolchain "${{ steps.rust_toolchain.outputs.channel }}"
           rustup target list --installed
 
       - name: Configure LLVM linker
