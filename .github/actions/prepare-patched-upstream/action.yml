@@ -34,11 +34,11 @@ runs:
         repo_url="https://github.com/${UPSTREAM_REPO}.git"
         rm -rf "${CHECKOUT_PATH}"
 
-        if git clone --depth 1 --branch "${UPSTREAM_REF}" "${repo_url}" "${CHECKOUT_PATH}"; then
+        if git -c core.autocrlf=false clone --depth 1 --branch "${UPSTREAM_REF}" "${repo_url}" "${CHECKOUT_PATH}"; then
           :
         elif [[ "${FALLBACK_TO_DEFAULT_BRANCH}" == "true" ]]; then
           echo "Falling back to the upstream default branch because ${UPSTREAM_REF} could not be cloned."
-          git clone --depth 1 "${repo_url}" "${CHECKOUT_PATH}"
+          git -c core.autocrlf=false clone --depth 1 "${repo_url}" "${CHECKOUT_PATH}"
         else
           echo "ERROR: failed to clone ${UPSTREAM_REPO} at ${UPSTREAM_REF}" >&2
           exit 1
