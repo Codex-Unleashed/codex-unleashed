@@ -1,10 +1,13 @@
 name: postmerge-ci
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
+  schedule:
+    - cron: "23 3 * * *"
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
 
 jobs:
   cargo-deny:

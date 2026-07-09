@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main
+    paths:
+      - "patches/**"
+      - ".github/workflows/update-badges.yml"
   workflow_dispatch:
   schedule:
     - cron: "17 4 * * *"
