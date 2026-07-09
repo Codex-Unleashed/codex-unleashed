@@ -52,9 +52,11 @@ jobs:
         env:
           INPUT_UPSTREAM_TAG: ${{ inputs.upstream_tag || '' }}
           INPUT_PATCH_RELEASE_NUMBER: ${{ inputs.patch_release_number || '' }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_SHA: ${{ github.sha }}
           GITHUB_WORKFLOW: ${{ github.workflow }}
         run: |
           set -euo pipefail
@@ -98,6 +100,8 @@ jobs:
           fi
 
           patched_tag="${upstream_tag}.${patch_release}"
+          failure_marker_name="failed-upstream-release-${patched_tag}-${GITHUB_SHA}"
+          export failure_marker_name
 
           if gh release view "${patched_tag}" >/dev/null 2>&1; then
             echo "Patched release ${patched_tag} already exists."
@@ -107,6 +111,28 @@ jobs:
             echo "build_date=${build_date}" >> "${GITHUB_OUTPUT}"
             echo "patch_files=$(find patches -type f -name '*.patch' -printf '%P ' | sed 's/[[:space:]]*$//')" >> "${GITHUB_OUTPUT}"
             exit 0
+          fi
+
+          if [[ "${GITHUB_EVENT_NAME}" == "schedule" ]]; then
+            failure_marker_id="$(
+              gh api \
+                "repos/${GITHUB_REPOSITORY}/actions/artifacts" \
+                --paginate \
+                -q '.artifacts[]
+                  | select(.expired == false and .name == env.failure_marker_name)
+                  | .id' \
+                2>/dev/null | head -n1 || true
+            )"
+            if [[ -n "${failure_marker_id}" ]]; then
+              echo "A previous release attempt for ${patched_tag} failed on this workflow revision (${GITHUB_SHA}); skipping scheduled retry."
+              echo "should_release=false" >> "${GITHUB_OUTPUT}"
+              echo "upstream_tag=${upstream_tag}" >> "${GITHUB_OUTPUT}"
+              echo "patched_tag=${patched_tag}" >> "${GITHUB_OUTPUT}"
+              echo "build_date=${build_date}" >> "${GITHUB_OUTPUT}"
+              echo "patch_files=$(find patches -type f -name '*.patch' -printf '%P ' | sed 's/[[:space:]]*$//')" >> "${GITHUB_OUTPUT}"
+              echo "supported_targets=" >> "${GITHUB_OUTPUT}"
+              exit 0
+            fi
           fi
 
           git clone --depth 1 --branch "${upstream_tag}" https://github.com/openai/codex.git upstream
@@ -1142,3 +1168,42 @@ jobs:
           name: ${{ needs.prepare.outputs.patched_tag }}
           body_path: RELEASE_NOTES.md
           files: release-stage/*
+
+  record-failure-marker:
+    needs:
+      - prepare
+      - build-unix
+      - build-windows-package
+      - build-windows-symbols
+      - publish
+    if: >-
+      ${{
+        always() &&
+        needs.prepare.outputs.should_release == 'true' &&
+        needs.publish.result != 'success'
+      }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Write failure marker
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p failure-marker
+          cat > failure-marker/README.txt <<EOF
+          Upstream release check failed.
+          Repository: ${{ github.repository }}
+          Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          Workflow commit: ${{ github.sha }}
+          Upstream tag: ${{ needs.prepare.outputs.upstream_tag }}
+          Patched tag: ${{ needs.prepare.outputs.patched_tag }}
+          Recorded at: $(date -u +%Y-%m-%dT%H:%M:%SZ)
+          EOF
+
+      - name: Upload failure marker
+        uses: actions/upload-artifact@v4
+        with:
+          name: failed-upstream-release-${{ needs.prepare.outputs.patched_tag }}-${{ github.sha }}
+          path: failure-marker/README.txt
+          retention-days: 30
