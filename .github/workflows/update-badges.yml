@@ -26,7 +26,12 @@ jobs:
           mkdir -p docs/badges
 
           public_fixes="$(find patches -mindepth 3 -maxdepth 3 -type d -name 'issue-*' | wc -l | tr -d ' ')"
-          upstream_bugs="$(find patches/openai/codex -mindepth 1 -maxdepth 1 -type d -name 'issue-*' 2>/dev/null | wc -l | tr -d ' ')"
+          upstream_bug_dir="patches/openai/codex"
+          if [[ -d "$upstream_bug_dir" ]]; then
+            upstream_bugs="$(find "$upstream_bug_dir" -mindepth 1 -maxdepth 1 -type d -name 'issue-*' | wc -l | tr -d ' ')"
+          else
+            upstream_bugs="0"
+          fi
 
           cat > docs/badges/upstream-bugs.json <<EOF
           {
