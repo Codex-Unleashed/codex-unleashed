@@ -418,7 +418,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: cargo-timings-rust-release-${{ matrix.target }}-${{ matrix.bundle }}
-          path: upstream/codex-rs/target/**/cargo-timings/cargo-timing.html
+          path: ${{ env.CARGO_TARGET_DIR }}/**/cargo-timings/cargo-timing.html
           if-no-files-found: warn
 
       - name: Build symbols archive and strip binaries
@@ -435,7 +435,7 @@ jobs:
           bash "${GITHUB_WORKSPACE}/.github/scripts/archive-release-symbols-and-strip-binaries.sh" \
             --target "${{ matrix.target }}" \
             --artifact-name "${{ matrix.artifact_name }}" \
-            --release-dir "upstream/codex-rs/target/${{ matrix.target }}/release" \
+            --release-dir "${CARGO_TARGET_DIR}/${{ matrix.target }}/release" \
             --archive-dir "symbols-dist/${{ matrix.artifact_name }}" \
             --binaries "${binaries[*]}"
 
@@ -451,14 +451,14 @@ jobs:
         uses: ./.github/actions/linux-code-sign
         with:
           target: ${{ matrix.target }}
-          artifacts-dir: ${{ github.workspace }}/upstream/codex-rs/target/${{ matrix.target }}/release
+          artifacts-dir: ${{ env.CARGO_TARGET_DIR }}/${{ matrix.target }}/release
           binaries: ${{ matrix.binaries }}
 
       - name: Stage artifacts
         shell: bash
         run: |
           set -euo pipefail
-          release_dir="upstream/codex-rs/target/${{ matrix.target }}/release"
+          release_dir="${CARGO_TARGET_DIR}/${{ matrix.target }}/release"
           dest="dist/${{ matrix.target }}"
           mkdir -p "$dest"
 
@@ -497,7 +497,7 @@ jobs:
           bash "${GITHUB_WORKSPACE}/.github/scripts/build-codex-package-archive.sh" \
             --target "$TARGET" \
             --bundle "$BUNDLE" \
-            --entrypoint-dir "upstream/codex-rs/target/${TARGET}/release" \
+            --entrypoint-dir "${CARGO_TARGET_DIR}/${TARGET}/release" \
             --archive-dir "dist/${TARGET}"
 
       - name: Build Python runtime wheel
@@ -673,6 +673,13 @@ jobs:
         uses: ./.github/actions/setup-msvc-env
         with:
           target: ${{ matrix.target }}
+
+      - name: Ensure requested Rust target is installed
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustup target add "${{ matrix.target }}" --toolchain stable-x86_64-pc-windows-msvc
+          rustup target list --installed
 
       - uses: ./.github/actions/prepare-patched-upstream
         with:

@@ -187,7 +187,11 @@ prepare_linux_bwrap_digest() {
     exit 1
   fi
 
-  release_dir="codex-rs/target/${target}/release"
+  if [[ -n "${CARGO_TARGET_DIR:-}" ]]; then
+    release_dir="${CARGO_TARGET_DIR}/${target}/release"
+  else
+    release_dir="codex-rs/target/${target}/release"
+  fi
   run_with_heartbeat cargo build --manifest-path ./codex-rs/Cargo.toml --target "${target}" --release --timings --bin bwrap
 
   bwrap_path="${release_dir}/bwrap"
@@ -322,7 +326,11 @@ else
   fi
 
   release_binaries="$(default_release_binaries "${artifact_target}")"
-  release_dir="codex-rs/target/${artifact_target}/release"
+  if [[ -n "${CARGO_TARGET_DIR:-}" ]]; then
+    release_dir="${CARGO_TARGET_DIR}/${artifact_target}/release"
+  else
+    release_dir="codex-rs/target/${artifact_target}/release"
+  fi
   for binary in ${release_binaries}; do
     if [[ -f "${release_dir}/${binary}" ]]; then
       cp -f "${release_dir}/${binary}" "${output_dir}/"

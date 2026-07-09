@@ -58,6 +58,13 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
+      - name: Ensure requested Rust target is installed
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustup target add "${{ matrix.target }}" --toolchain stable-x86_64-pc-windows-msvc
+          rustup target list --installed
+
       - name: Configure LLVM linker
         uses: ./.github/actions/setup-msvc-env
         with:
