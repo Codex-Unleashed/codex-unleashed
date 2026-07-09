@@ -1,0 +1,266 @@
+name: rust-release-windows
+
+on:
+  workflow_call:
+    inputs:
+      upstream_tag:
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      upstream_tag:
+        description: "Upstream rust-v* tag to package."
+        required: true
+        type: string
+
+env:
+  WINDOWS_BINARIES: "codex codex-code-mode-host codex-responses-api-proxy codex-windows-sandbox-setup codex-command-runner codex-app-server"
+
+jobs:
+  build-windows-binaries:
+    name: Build Windows binaries - ${{ matrix.target }} - ${{ matrix.bundle }}
+    runs-on: windows-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-pc-windows-msvc
+            bundle: primary
+            binaries: "codex codex-code-mode-host codex-responses-api-proxy"
+          - target: aarch64-pc-windows-msvc
+            bundle: primary
+            binaries: "codex codex-code-mode-host codex-responses-api-proxy"
+          - target: x86_64-pc-windows-msvc
+            bundle: helpers
+            binaries: "codex-windows-sandbox-setup codex-command-runner"
+          - target: aarch64-pc-windows-msvc
+            bundle: helpers
+            binaries: "codex-windows-sandbox-setup codex-command-runner"
+          - target: x86_64-pc-windows-msvc
+            bundle: app-server
+            binaries: "codex-app-server codex-code-mode-host"
+          - target: aarch64-pc-windows-msvc
+            bundle: app-server
+            binaries: "codex-app-server codex-code-mode-host"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup-ci
+
+      - uses: ./.github/actions/prepare-patched-upstream
+        with:
+          upstream-ref: ${{ inputs.upstream_tag }}
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Configure LLVM linker
+        uses: ./.github/actions/setup-msvc-env
+        with:
+          target: ${{ matrix.target }}
+
+      - name: Cargo build (Windows binaries)
+        working-directory: upstream/codex-rs
+        shell: bash
+        run: |
+          set -euo pipefail
+          target="${{ matrix.target }}"
+          if [[ "$target" == "x86_64-pc-windows-msvc" ]]; then
+            export LIBSQLITE3_FLAGS=SQLITE_DISABLE_INTRINSIC
+          fi
+          build_args=()
+          for binary in ${{ matrix.binaries }}; do
+            build_args+=(--bin "$binary")
+          done
+          cargo build --target "$target" --release --timings "${build_args[@]}"
+
+      - name: Upload Cargo timings
+        uses: actions/upload-artifact@v4
+        with:
+          name: cargo-timings-rust-release-windows-${{ matrix.target }}-${{ matrix.bundle }}
+          path: ${{ env.CARGO_TARGET_DIR }}/**/cargo-timings/cargo-timing.html
+          if-no-files-found: warn
+
+      - name: Stage Windows binaries
+        working-directory: upstream/codex-rs
+        shell: bash
+        run: |
+          set -euo pipefail
+          release_dir="$CARGO_TARGET_DIR/${{ matrix.target }}/release"
+          output_dir="$release_dir/staged-${{ matrix.bundle }}"
+          mkdir -p "$output_dir"
+          for binary in ${{ matrix.binaries }}; do
+            pdb_name="${binary//-/_}"
+            pdb_path="$release_dir/${pdb_name}.pdb"
+            if [[ ! -f "$pdb_path" ]]; then
+              pdb_path="$release_dir/${binary}.pdb"
+            fi
+            cp "$release_dir/${binary}.exe" "$output_dir/${binary}.exe"
+            cp "$pdb_path" "$output_dir/${binary}.pdb"
+          done
+
+      - name: Upload Windows binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-binaries-${{ matrix.target }}-${{ matrix.bundle }}
+          path: ${{ env.CARGO_TARGET_DIR }}/${{ matrix.target }}/release/staged-${{ matrix.bundle }}/*
+
+  build-windows-symbols:
+    needs:
+      - build-windows-binaries
+    name: Build Windows symbols - ${{ matrix.target }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - x86_64-pc-windows-msvc
+          - aarch64-pc-windows-msvc
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup-ci
+
+      - name: Download prebuilt Windows binaries
+        uses: actions/download-artifact@v4
+        with:
+          pattern: windows-binaries-${{ matrix.target }}-*
+          merge-multiple: true
+          path: ${{ env.CARGO_TARGET_DIR }}/${{ matrix.target }}/release
+
+      - name: Build symbols archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash "${GITHUB_WORKSPACE}/.github/scripts/archive-release-symbols-and-strip-binaries.sh" \
+            --target "${{ matrix.target }}" \
+            --artifact-name "${{ matrix.target }}" \
+            --release-dir "${CARGO_TARGET_DIR}/${{ matrix.target }}/release" \
+            --archive-dir "symbols-dist/${{ matrix.target }}" \
+            --binaries "${WINDOWS_BINARIES}"
+
+      - name: Upload symbols archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}-symbols
+          path: symbols-dist/${{ matrix.target }}/*
+          if-no-files-found: error
+
+  build-windows:
+    needs:
+      - build-windows-binaries
+      - build-windows-symbols
+    name: Build Windows packages - ${{ matrix.target }}
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - x86_64-pc-windows-msvc
+          - aarch64-pc-windows-msvc
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup-ci
+
+      - name: Download prebuilt Windows primary binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-binaries-${{ matrix.target }}-primary
+          path: ${{ env.CARGO_TARGET_DIR }}/${{ matrix.target }}/release
+
+      - name: Download prebuilt Windows helper binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-binaries-${{ matrix.target }}-helpers
+          path: ${{ env.CARGO_TARGET_DIR }}/${{ matrix.target }}/release
+
+      - name: Download prebuilt Windows app-server binary
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-binaries-${{ matrix.target }}-app-server
+          path: ${{ env.CARGO_TARGET_DIR }}/${{ matrix.target }}/release
+
+      - name: Stage artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          dest="dist/${{ matrix.target }}"
+          mkdir -p "$dest"
+          for binary in ${WINDOWS_BINARIES}; do
+            cp "$CARGO_TARGET_DIR/${{ matrix.target }}/release/${binary}.exe" \
+              "$dest/${binary}-${{ matrix.target }}.exe"
+          done
+
+      - name: Build Codex package archives
+        shell: bash
+        run: |
+          set -euo pipefail
+          target="${{ matrix.target }}"
+          archive_script="${GITHUB_WORKSPACE}/.github/scripts/build-codex-package-archive.sh"
+          temp_root="${RUNNER_TEMP}/codex-package-archives"
+          mkdir -p "$temp_root/primary" "$temp_root/app-server"
+          printf '%s\0' primary app-server |
+            xargs -0 -P0 -I{} env \
+              TMPDIR="$temp_root/{}" \
+              TMP="$temp_root/{}" \
+              TEMP="$temp_root/{}" \
+              bash "$archive_script" \
+                --target "$target" \
+                --bundle "{}" \
+                --entrypoint-dir "$CARGO_TARGET_DIR/$target/release" \
+                --archive-dir "dist/$target"
+
+      - name: Build Python runtime wheel
+        shell: bash
+        env:
+          CODEX_VERSION: ${{ inputs.upstream_tag }}
+        run: |
+          set -euo pipefail
+          case "${{ matrix.target }}" in
+            aarch64-pc-windows-msvc) platform_tag="win_arm64" ;;
+            x86_64-pc-windows-msvc) platform_tag="win_amd64" ;;
+            *) echo "No Python runtime wheel platform tag for ${{ matrix.target }}" >&2; exit 1 ;;
+          esac
+
+          python -m venv "${RUNNER_TEMP}/python-runtime-build-venv"
+          "${RUNNER_TEMP}/python-runtime-build-venv/Scripts/python.exe" -m pip install build
+
+          stage_dir="${RUNNER_TEMP}/openai-codex-cli-bin-${{ matrix.target }}"
+          wheel_dir="${GITHUB_WORKSPACE}/python-runtime-dist/${{ matrix.target }}"
+          python "${GITHUB_WORKSPACE}/sdk/python/scripts/update_sdk_artifacts.py" \
+            stage-runtime \
+            "$stage_dir" \
+            "dist/${{ matrix.target }}/codex-package-${{ matrix.target }}.tar.gz" \
+            --codex-version "$CODEX_VERSION" \
+            --platform-tag "$platform_tag"
+          "${RUNNER_TEMP}/python-runtime-build-venv/Scripts/python.exe" -m build --wheel --outdir "$wheel_dir" "$stage_dir"
+
+      - name: Upload Python runtime wheel
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-runtime-wheel-${{ matrix.target }}
+          path: python-runtime-dist/${{ matrix.target }}/*.whl
+          if-no-files-found: error
+
+      - name: Generate checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "dist/${{ matrix.target }}"
+          sha256sum ./* > SHA256SUMS
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}
+          path: dist/${{ matrix.target }}/
+          if-no-files-found: error

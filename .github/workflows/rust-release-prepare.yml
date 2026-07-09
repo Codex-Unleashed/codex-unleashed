@@ -1,0 +1,20 @@
+name: rust-release-prepare
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 */4 * * *"
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  unsupported:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Explain source-tree limitation
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "codex-fixes does not maintain upstream source files like codex-rs/models-manager/models.json at repository root, so upstream's rust-release-prepare automation is not applicable here."

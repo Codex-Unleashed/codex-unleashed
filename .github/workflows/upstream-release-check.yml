@@ -1,6 +1,16 @@
 name: Upstream release check
 
 on:
+  workflow_call:
+    inputs:
+      upstream_tag:
+        description: "Optional upstream tag override."
+        required: false
+        type: string
+      patch_release_number:
+        description: "Optional patched release suffix override. Defaults to 0."
+        required: false
+        type: string
   schedule:
     - cron: "0 * * * *"
   workflow_dispatch:
@@ -72,7 +82,7 @@ jobs:
           git clone --depth 1 --branch "${upstream_tag}" https://github.com/openai/codex.git upstream
           upstream_sha="$(git -C upstream rev-parse HEAD)"
           patch_files="$(find patches -type f -name '*.patch' -printf '%P ' | sed 's/[[:space:]]*$//')"
-          supported_targets="x86_64-unknown-linux-musl, x86_64-apple-darwin, aarch64-apple-darwin, x86_64-pc-windows-msvc"
+          supported_targets="x86_64-unknown-linux-musl, aarch64-unknown-linux-musl, x86_64-apple-darwin, aarch64-apple-darwin, x86_64-pc-windows-msvc, aarch64-pc-windows-msvc"
 
           echo "should_release=true" >> "${GITHUB_OUTPUT}"
           echo "upstream_tag=${upstream_tag}" >> "${GITHUB_OUTPUT}"
@@ -199,10 +209,20 @@ jobs:
             bundle: primary
             artifact_name: x86_64-unknown-linux-musl
             binaries: "codex codex-code-mode-host codex-responses-api-proxy bwrap"
+          - runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-musl
+            bundle: primary
+            artifact_name: aarch64-unknown-linux-musl
+            binaries: "codex codex-code-mode-host codex-responses-api-proxy bwrap"
           - runner: ubuntu-latest
             target: x86_64-unknown-linux-musl
             bundle: app-server
             artifact_name: x86_64-unknown-linux-musl-app-server
+            binaries: "codex-app-server codex-code-mode-host"
+          - runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-musl
+            bundle: app-server
+            artifact_name: aarch64-unknown-linux-musl-app-server
             binaries: "codex-app-server codex-code-mode-host"
           - runner: macos-15
             target: x86_64-apple-darwin
@@ -480,6 +500,55 @@ jobs:
             --entrypoint-dir "upstream/codex-rs/target/${TARGET}/release" \
             --archive-dir "dist/${TARGET}"
 
+      - name: Build Python runtime wheel
+        if: ${{ matrix.bundle == 'primary' }}
+        shell: bash
+        env:
+          CODEX_VERSION: ${{ needs.prepare.outputs.patched_tag }}
+        run: |
+          set -euo pipefail
+
+          case "${{ matrix.target }}" in
+            aarch64-apple-darwin)
+              platform_tag="macosx_11_0_arm64"
+              ;;
+            x86_64-apple-darwin)
+              platform_tag="macosx_10_9_x86_64"
+              ;;
+            aarch64-unknown-linux-musl)
+              platform_tag="manylinux_2_17_aarch64"
+              ;;
+            x86_64-unknown-linux-musl)
+              platform_tag="manylinux_2_17_x86_64"
+              ;;
+            *)
+              echo "No Python runtime wheel platform tag for ${{ matrix.target }}"
+              exit 1
+              ;;
+          esac
+
+          python3 -m venv "${RUNNER_TEMP}/python-runtime-build-venv"
+          "${RUNNER_TEMP}/python-runtime-build-venv/bin/python" -m pip install build
+
+          stage_dir="${RUNNER_TEMP}/openai-codex-cli-bin-${{ matrix.target }}"
+          wheel_dir="${GITHUB_WORKSPACE}/python-runtime-dist/${{ matrix.target }}"
+          python3 \
+            "${GITHUB_WORKSPACE}/sdk/python/scripts/update_sdk_artifacts.py" \
+            stage-runtime \
+            "$stage_dir" \
+            "dist/${{ matrix.target }}/codex-package-${{ matrix.target }}.tar.gz" \
+            --codex-version "$CODEX_VERSION" \
+            --platform-tag "$platform_tag"
+          "${RUNNER_TEMP}/python-runtime-build-venv/bin/python" -m build --wheel --outdir "$wheel_dir" "$stage_dir"
+
+      - name: Upload Python runtime wheel
+        if: ${{ matrix.bundle == 'primary' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-runtime-wheel-${{ matrix.target }}
+          path: python-runtime-dist/${{ matrix.target }}/*.whl
+          if-no-files-found: error
+
       - name: Compress artifacts
         shell: bash
         run: |
@@ -559,10 +628,19 @@ jobs:
           - target: x86_64-pc-windows-msvc
             bundle: primary
             binaries: "codex codex-code-mode-host codex-responses-api-proxy"
+          - target: aarch64-pc-windows-msvc
+            bundle: primary
+            binaries: "codex codex-code-mode-host codex-responses-api-proxy"
           - target: x86_64-pc-windows-msvc
             bundle: helpers
             binaries: "codex-windows-sandbox-setup codex-command-runner"
+          - target: aarch64-pc-windows-msvc
+            bundle: helpers
+            binaries: "codex-windows-sandbox-setup codex-command-runner"
           - target: x86_64-pc-windows-msvc
+            bundle: app-server
+            binaries: "codex-app-server codex-code-mode-host"
+          - target: aarch64-pc-windows-msvc
             bundle: app-server
             binaries: "codex-app-server codex-code-mode-host"
     steps:
@@ -660,8 +738,14 @@ jobs:
       - build-windows-binaries
       - prepare
     if: needs.prepare.outputs.should_release == 'true'
-    name: Build Windows symbols - x86_64-pc-windows-msvc
+    name: Build Windows symbols - ${{ matrix.target }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - x86_64-pc-windows-msvc
+          - aarch64-pc-windows-msvc
     steps:
       - name: Checkout patch repo
         uses: actions/checkout@v4
@@ -671,24 +755,24 @@ jobs:
       - name: Download prebuilt Windows binaries
         uses: actions/download-artifact@v4
         with:
-          pattern: windows-binaries-x86_64-pc-windows-msvc-*
+          pattern: windows-binaries-${{ matrix.target }}-*
           merge-multiple: true
-          path: ${{ env.CARGO_TARGET_DIR }}/x86_64-pc-windows-msvc/release
+          path: ${{ env.CARGO_TARGET_DIR }}/${{ matrix.target }}/release
 
       - name: Build symbols archive
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p symbols-dist/x86_64-pc-windows-msvc
-          tar -C "$CARGO_TARGET_DIR/x86_64-pc-windows-msvc/release" \
-            -czf "symbols-dist/x86_64-pc-windows-msvc/x86_64-pc-windows-msvc-symbols.tar.gz" \
+          mkdir -p "symbols-dist/${{ matrix.target }}"
+          tar -C "$CARGO_TARGET_DIR/${{ matrix.target }}/release" \
+            -czf "symbols-dist/${{ matrix.target }}/${{ matrix.target }}-symbols.tar.gz" \
             ./*.pdb
 
       - name: Upload symbols archive
         uses: actions/upload-artifact@v4
         with:
-          name: x86_64-pc-windows-msvc-symbols
-          path: symbols-dist/x86_64-pc-windows-msvc/*
+          name: ${{ matrix.target }}-symbols
+          path: symbols-dist/${{ matrix.target }}/*
           if-no-files-found: error
 
   build-windows-package:
@@ -697,8 +781,14 @@ jobs:
       - build-windows-symbols
       - prepare
     if: needs.prepare.outputs.should_release == 'true'
-    name: Build - windows-latest - x86_64-pc-windows-msvc
+    name: Build - windows-latest - ${{ matrix.target }}
     runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - x86_64-pc-windows-msvc
+          - aarch64-pc-windows-msvc
     env:
       WINDOWS_BINARIES: "codex codex-code-mode-host codex-responses-api-proxy codex-windows-sandbox-setup codex-command-runner codex-app-server"
     steps:
@@ -710,39 +800,99 @@ jobs:
       - name: Download prebuilt Windows primary binaries
         uses: actions/download-artifact@v4
         with:
-          name: windows-binaries-x86_64-pc-windows-msvc-primary
-          path: ${{ env.CARGO_TARGET_DIR }}/x86_64-pc-windows-msvc/release
+          name: windows-binaries-${{ matrix.target }}-primary
+          path: ${{ env.CARGO_TARGET_DIR }}/${{ matrix.target }}/release
 
       - name: Download prebuilt Windows helper binaries
         uses: actions/download-artifact@v4
         with:
-          name: windows-binaries-x86_64-pc-windows-msvc-helpers
-          path: ${{ env.CARGO_TARGET_DIR }}/x86_64-pc-windows-msvc/release
+          name: windows-binaries-${{ matrix.target }}-helpers
+          path: ${{ env.CARGO_TARGET_DIR }}/${{ matrix.target }}/release
 
       - name: Download prebuilt Windows app-server binary
         uses: actions/download-artifact@v4
         with:
-          name: windows-binaries-x86_64-pc-windows-msvc-app-server
-          path: ${{ env.CARGO_TARGET_DIR }}/x86_64-pc-windows-msvc/release
+          name: windows-binaries-${{ matrix.target }}-app-server
+          path: ${{ env.CARGO_TARGET_DIR }}/${{ matrix.target }}/release
 
       - name: Stage artifacts
         shell: bash
         run: |
           set -euo pipefail
-          dest="dist/x86_64-pc-windows-msvc"
+          dest="dist/${{ matrix.target }}"
           mkdir -p "$dest"
           for binary in ${WINDOWS_BINARIES}; do
-            cp "$CARGO_TARGET_DIR/x86_64-pc-windows-msvc/release/${binary}.exe" \
-              "$dest/${binary}-x86_64-pc-windows-msvc.exe"
+            cp "$CARGO_TARGET_DIR/${{ matrix.target }}/release/${binary}.exe" \
+              "$dest/${binary}-${{ matrix.target }}.exe"
           done
+
+      - name: Build Codex package archives
+        shell: bash
+        run: |
+          set -euo pipefail
+          target="${{ matrix.target }}"
+          archive_script="${GITHUB_WORKSPACE}/.github/scripts/build-codex-package-archive.sh"
+          temp_root="${RUNNER_TEMP}/codex-package-archives"
+
+          mkdir -p "$temp_root/primary" "$temp_root/app-server"
+          printf '%s\0' primary app-server |
+            xargs -0 -P0 -I{} env \
+              TMPDIR="$temp_root/{}" \
+              TMP="$temp_root/{}" \
+              TEMP="$temp_root/{}" \
+              bash "$archive_script" \
+                --target "$target" \
+                --bundle "{}" \
+                --entrypoint-dir "$CARGO_TARGET_DIR/$target/release" \
+                --archive-dir "dist/$target"
+
+      - name: Build Python runtime wheel
+        shell: bash
+        env:
+          CODEX_VERSION: ${{ needs.prepare.outputs.patched_tag }}
+        run: |
+          set -euo pipefail
+
+          python -m venv "${RUNNER_TEMP}/python-runtime-build-venv"
+          "${RUNNER_TEMP}/python-runtime-build-venv/Scripts/python.exe" -m pip install build
+
+          case "${{ matrix.target }}" in
+            aarch64-pc-windows-msvc)
+              platform_tag="win_arm64"
+              ;;
+            x86_64-pc-windows-msvc)
+              platform_tag="win_amd64"
+              ;;
+            *)
+              echo "No Python runtime wheel platform tag for ${{ matrix.target }}"
+              exit 1
+              ;;
+          esac
+
+          stage_dir="${RUNNER_TEMP}/openai-codex-cli-bin-${{ matrix.target }}"
+          wheel_dir="${GITHUB_WORKSPACE}/python-runtime-dist/${{ matrix.target }}"
+          python "${GITHUB_WORKSPACE}/sdk/python/scripts/update_sdk_artifacts.py" \
+            stage-runtime \
+            "$stage_dir" \
+            "dist/${{ matrix.target }}/codex-package-${{ matrix.target }}.tar.gz" \
+            --codex-version "$CODEX_VERSION" \
+            --platform-tag "$platform_tag"
+          "${RUNNER_TEMP}/python-runtime-build-venv/Scripts/python.exe" -m build --wheel --outdir "$wheel_dir" "$stage_dir"
+
+      - name: Upload Python runtime wheel
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-runtime-wheel-${{ matrix.target }}
+          path: python-runtime-dist/${{ matrix.target }}/*.whl
+          if-no-files-found: error
 
       - name: Compress artifacts
         shell: bash
         run: |
           set -euo pipefail
-          dest="dist/x86_64-pc-windows-msvc"
+          dest="dist/${{ matrix.target }}"
           repo_root=$PWD
-          target="x86_64-pc-windows-msvc"
+          target="${{ matrix.target }}"
           export dest repo_root target
           printf '%s\0' "$dest"/* |
             xargs -0 -n1 -P2 bash -c '
@@ -769,14 +919,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cd dist/x86_64-pc-windows-msvc
+          cd "dist/${{ matrix.target }}"
           sha256sum ./* > SHA256SUMS
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: x86_64-pc-windows-msvc
-          path: dist/x86_64-pc-windows-msvc/
+          name: ${{ matrix.target }}
+          path: dist/${{ matrix.target }}/
           if-no-files-found: error
 
   publish:
@@ -788,7 +938,9 @@ jobs:
     if: needs.prepare.outputs.should_release == 'true'
     runs-on: ubuntu-latest
     permissions:
+      attestations: write
       contents: write
+      id-token: write
     steps:
       - name: Checkout patch repo
         uses: actions/checkout@v4
@@ -797,6 +949,76 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: release-artifacts
+
+      - name: Stage release assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-stage
+          declare -A seen=()
+          while IFS= read -r -d '' file; do
+            parent="$(basename "$(dirname "$file")")"
+            base="$(basename "$file")"
+            staged_name="$base"
+            if [[ "$base" == "SHA256SUMS" ]]; then
+              staged_name="SHA256SUMS-${parent}.txt"
+            fi
+            if [[ -n "${seen[$staged_name]+x}" ]]; then
+              echo "ERROR: duplicate release asset name after staging: ${staged_name}" >&2
+              exit 1
+            fi
+            seen[$staged_name]=1
+            cp "$file" "release-stage/${staged_name}"
+          done < <(find release-artifacts -type f -print0 | sort -z)
+
+      - name: Generate release manifest
+        shell: bash
+        env:
+          GITHUB_WORKFLOW_REF: ${{ github.workflow_ref }}
+          GITHUB_WORKFLOW_SHA: ${{ github.workflow_sha }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          python3 ./scripts/generate-release-manifest.py \
+            --release-dir release-stage \
+            --output release-stage/release-manifest.json \
+            --patch-repo . \
+            --patch-repository "${{ github.repository }}" \
+            --upstream-repository "openai/codex" \
+            --upstream-tag "${{ needs.prepare.outputs.upstream_tag }}" \
+            --upstream-commit "${{ needs.prepare.outputs.upstream_sha }}" \
+            --patched-tag "${{ needs.prepare.outputs.patched_tag }}" \
+            --build-date "${{ needs.prepare.outputs.build_date }}" \
+            --builder-type "github-actions" \
+            --workflow-path ".github/workflows/upstream-release-check.yml" \
+            --workflow-ref "${GITHUB_WORKFLOW_REF}" \
+            --workflow-sha "${GITHUB_WORKFLOW_SHA}" \
+            --workflow-run-id "${GITHUB_RUN_ID}" \
+            --workflow-run-attempt "${GITHUB_RUN_ATTEMPT}" \
+            --supported-targets "${{ needs.prepare.outputs.supported_targets }}"
+
+      - name: Generate consolidated checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          (
+            cd release-stage
+            find . -maxdepth 1 -type f ! -name 'release-provenance.intoto.jsonl' -printf '%P\n' | LC_ALL=C sort | xargs sha256sum > SHA256SUMS.release.txt
+          )
+
+      - name: Generate build provenance attestation
+        id: attest_release
+        uses: actions/attest@v4
+        with:
+          subject-checksums: release-stage/SHA256SUMS.release.txt
+          show-summary: true
+
+      - name: Export attestation bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp "${{ steps.attest_release.outputs.bundle-path }}" release-stage/release-provenance.intoto.jsonl
 
       - name: Build release notes
         shell: bash
@@ -814,7 +1036,9 @@ jobs:
           - Patch files applied: ${patch_files}
           - Build date: ${{ needs.prepare.outputs.build_date }}
           - Supported platforms: ${{ needs.prepare.outputs.supported_targets }}
-          - Checksums: Included in uploaded \`SHA256SUMS\` files
+          - Checksums: Included in uploaded \`SHA256SUMS-*.txt\` files and \`SHA256SUMS.release.txt\`
+          - Release manifest: Included in uploaded \`release-manifest.json\`
+          - Attestation bundle: Included in uploaded \`release-provenance.intoto.jsonl\`
 
           This is an unofficial patch release and is not affiliated with or endorsed by OpenAI.
           EOF
@@ -825,4 +1049,4 @@ jobs:
           tag_name: ${{ needs.prepare.outputs.patched_tag }}
           name: ${{ needs.prepare.outputs.patched_tag }}
           body_path: RELEASE_NOTES.md
-          files: release-artifacts/**/*
+          files: release-stage/*

@@ -6,8 +6,6 @@ usage() {
 Usage: build-release.sh <upstream-checkout> [output-dir]
 
 Applies repository patches, runs upstream checks, and builds release artifacts.
-This script intentionally contains TODO markers where upstream-specific build
-details must be confirmed by the maintainer.
 EOF
 }
 
@@ -26,10 +24,8 @@ target_dir="$(cd "${1}" && pwd)"
 output_dir="${2:-${repo_root}/dist}"
 output_dir="$(mkdir -p "${output_dir}" && cd "${output_dir}" && pwd)"
 build_target="${UPSTREAM_TARGET:-}"
-
-is_current_upstream_layout() {
-  [[ -f pnpm-lock.yaml && -f codex-rs/Cargo.toml ]]
-}
+build_date="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+original_upstream_sha="$(git -C "${target_dir}" rev-parse HEAD)"
 
 infer_host_target() {
   case "$(uname -s):$(uname -m)" in
@@ -210,6 +206,11 @@ if [[ ! -d "${target_dir}/.git" ]]; then
   exit 1
 fi
 
+if [[ ! -f "${target_dir}/pnpm-lock.yaml" || ! -f "${target_dir}/codex-rs/Cargo.toml" ]]; then
+  echo "ERROR: ${target_dir} does not match the current upstream Codex layout" >&2
+  exit 1
+fi
+
 "${repo_root}/scripts/apply-patches.sh" "${target_dir}"
 
 pushd "${target_dir}" >/dev/null
@@ -218,18 +219,16 @@ if [[ "${SKIP_UPSTREAM_TESTS:-0}" == "1" ]]; then
   echo "Skipping upstream tests because SKIP_UPSTREAM_TESTS=1"
 elif [[ -n "${UPSTREAM_TEST_COMMAND:-}" ]]; then
   echo "Running UPSTREAM_TEST_COMMAND"
-  if is_current_upstream_layout; then
-    test_target="${UPSTREAM_TEST_TARGET:-${build_target:-}}"
-    if [[ -z "${test_target}" ]]; then
-      test_target="$(infer_host_target)"
-    fi
-    if should_configure_rusty_v8_overrides "${test_target}"; then
-      configure_rusty_v8_overrides "${test_target}"
-    fi
+  test_target="${UPSTREAM_TEST_TARGET:-${build_target:-}}"
+  if [[ -z "${test_target}" ]]; then
+    test_target="$(infer_host_target)"
+  fi
+  if should_configure_rusty_v8_overrides "${test_target}"; then
+    configure_rusty_v8_overrides "${test_target}"
   fi
   bash -lc "${UPSTREAM_TEST_COMMAND}"
-elif is_current_upstream_layout; then
-  echo "Detected current upstream Codex layout; running default upstream-aligned checks."
+else
+  echo "Running default upstream Codex checks."
   if ! command -v pnpm >/dev/null 2>&1; then
     echo "ERROR: pnpm is required for the current upstream Codex default test path" >&2
     exit 1
@@ -251,36 +250,6 @@ elif is_current_upstream_layout; then
   fi
   pnpm install --frozen-lockfile
   "${repo_root}/scripts/run-upstream-repo-checks.sh" .
-elif [[ -f pnpm-lock.yaml ]]; then
-  echo "Detected pnpm-lock.yaml; running conservative pnpm checks."
-  if command -v pnpm >/dev/null 2>&1; then
-    pnpm install --frozen-lockfile
-    pnpm test
-  else
-    echo "ERROR: pnpm is required to build pnpm-based upstream projects" >&2
-    exit 1
-  fi
-elif [[ -f package.json ]]; then
-  echo "Detected package.json; running conservative Node checks."
-  if command -v npm >/dev/null 2>&1; then
-    npm ci
-    npm test
-  else
-    echo "ERROR: npm is required to build package.json-based upstream projects" >&2
-    exit 1
-  fi
-elif [[ -f Cargo.toml ]]; then
-  echo "Detected Cargo.toml; running conservative Rust checks."
-  if command -v cargo >/dev/null 2>&1; then
-    cargo test --locked
-  else
-    echo "ERROR: cargo is required to build Rust-based upstream projects" >&2
-    exit 1
-  fi
-else
-  echo "TODO: verify upstream Codex build and test commands for this checkout." >&2
-  echo "Set UPSTREAM_TEST_COMMAND explicitly or extend scripts/build-release.sh." >&2
-  exit 1
 fi
 
 if [[ "${SKIP_UPSTREAM_BUILD:-0}" == "1" ]]; then
@@ -288,8 +257,8 @@ if [[ "${SKIP_UPSTREAM_BUILD:-0}" == "1" ]]; then
 elif [[ -n "${UPSTREAM_BUILD_COMMAND:-}" ]]; then
   echo "Running UPSTREAM_BUILD_COMMAND"
   bash -lc "${UPSTREAM_BUILD_COMMAND}"
-elif is_current_upstream_layout; then
-  echo "Detected current upstream Codex layout; running default upstream-aligned build."
+else
+  echo "Running default upstream Codex release build."
   if [[ -z "${build_target}" ]]; then
     build_target="$(infer_default_release_target)" || {
       echo "ERROR: unable to infer default UPSTREAM_TARGET for $(uname -s)" >&2
@@ -325,9 +294,6 @@ elif is_current_upstream_layout; then
 
   build_args+=(--timings)
   run_with_heartbeat cargo build "${build_args[@]}"
-else
-  echo "TODO: set UPSTREAM_BUILD_COMMAND to the exact upstream release build command." >&2
-  exit 1
 fi
 
 if [[ -n "${UPSTREAM_ARTIFACT_GLOB:-}" ]]; then
@@ -347,8 +313,8 @@ elif [[ "${SKIP_ARTIFACT_COLLECTION:-0}" == "1" ]]; then
   popd >/dev/null
   echo "Artifacts were intentionally skipped."
   exit 0
-elif is_current_upstream_layout; then
-  echo "Detected current upstream Codex layout; collecting default release binaries."
+else
+  echo "Collecting default upstream Codex release binaries."
   artifact_target="${build_target}"
   if [[ -z "${artifact_target}" ]]; then
     echo "ERROR: artifact collection requires UPSTREAM_TARGET or an inferred build target" >&2
@@ -367,9 +333,6 @@ elif is_current_upstream_layout; then
       exit 1
     fi
   done
-else
-  echo "TODO: set UPSTREAM_ARTIFACT_GLOB so release artifacts can be collected." >&2
-  exit 1
 fi
 
 popd >/dev/null
@@ -382,5 +345,20 @@ else
   echo "ERROR: need sha256sum or shasum to generate checksums" >&2
   exit 1
 fi
+
+python3 "${repo_root}/scripts/generate-release-manifest.py" \
+  --release-dir "${output_dir}" \
+  --output "${output_dir}/release-manifest.json" \
+  --patch-repo "${repo_root}" \
+  --patch-repository "${PATCH_REPOSITORY:-cowwoc/codex-fixes}" \
+  --upstream-repository "${UPSTREAM_REPOSITORY:-openai/codex}" \
+  --upstream-tag "${UPSTREAM_TAG:-}" \
+  --upstream-commit "${UPSTREAM_SOURCE_SHA:-${original_upstream_sha}}" \
+  --patched-tag "${PATCHED_TAG:-}" \
+  --build-date "${build_date}" \
+  --builder-type "local-script" \
+  --supported-targets "${build_target}" \
+  --consolidated-checksums "SHA256SUMS" \
+  --attestation-bundle ""
 
 echo "Artifacts written to ${output_dir}"

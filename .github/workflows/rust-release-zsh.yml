@@ -1,0 +1,164 @@
+name: rust-release-zsh
+
+on:
+  push:
+    tags:
+      - "codex-zsh-v*.*.*"
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Tag name to publish, for example codex-zsh-v0.1.0."
+        required: false
+        type: string
+
+env:
+  ZSH_COMMIT: 77045ef899e53b9598bebc5a41db93a548a40ca6
+  ZSH_PATCH: upstream/codex-rs/shell-escalation/patches/zsh-exec-wrapper.patch
+
+concurrency:
+  group: ${{ github.workflow }}::${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  metadata:
+    runs-on: ubuntu-latest
+    outputs:
+      release_tag: ${{ steps.release_tag.outputs.release_tag }}
+    steps:
+      - id: release_tag
+        env:
+          INPUT_RELEASE_TAG: ${{ inputs.release_tag || '' }}
+          REF_NAME: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${INPUT_RELEASE_TAG}" ]]; then
+            RELEASE_TAG="${INPUT_RELEASE_TAG}"
+          elif [[ "${REF_NAME}" =~ ^codex-zsh-v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            RELEASE_TAG="${REF_NAME}"
+          else
+            RELEASE_TAG="codex-zsh-v0.0.0"
+          fi
+          if [[ ! "${RELEASE_TAG}" =~ ^codex-zsh-v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Tag ${RELEASE_TAG} does not match codex-zsh-vX.Y.Z." >&2
+            exit 1
+          fi
+          echo "release_tag=${RELEASE_TAG}" >> "$GITHUB_OUTPUT"
+
+  linux:
+    name: Build zsh (Linux) - ${{ matrix.target }}
+    needs: metadata
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    container:
+      image: ${{ matrix.image }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            target: x86_64-unknown-linux-musl
+            image: ubuntu:24.04
+            archive_name: codex-zsh-x86_64-unknown-linux-musl.tar.gz
+          - runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-musl
+            image: arm64v8/ubuntu:24.04
+            archive_name: codex-zsh-aarch64-unknown-linux-musl.tar.gz
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/prepare-patched-upstream
+        with:
+          upstream-ref: main
+          fallback-to-default-branch: "true"
+
+      - name: Install build prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y \
+            autoconf bison build-essential ca-certificates gettext git libncursesw5-dev
+
+      - name: Build zsh artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./.github/scripts/build-zsh-release-artifact.sh "dist/zsh/${{ matrix.target }}/${{ matrix.archive_name }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: codex-zsh-${{ matrix.target }}
+          path: dist/zsh/${{ matrix.target }}/*
+
+  darwin:
+    name: Build zsh (macOS) - ${{ matrix.target }}
+    needs: metadata
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            target: x86_64-apple-darwin
+            archive_name: codex-zsh-x86_64-apple-darwin.tar.gz
+          - runner: macos-15
+            target: aarch64-apple-darwin
+            archive_name: codex-zsh-aarch64-apple-darwin.tar.gz
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/prepare-patched-upstream
+        with:
+          upstream-ref: main
+          fallback-to-default-branch: "true"
+
+      - name: Install build prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v autoconf >/dev/null 2>&1; then
+            brew install autoconf
+          fi
+
+      - name: Build zsh artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./.github/scripts/build-zsh-release-artifact.sh "dist/zsh/${{ matrix.target }}/${{ matrix.archive_name }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: codex-zsh-${{ matrix.target }}
+          path: dist/zsh/${{ matrix.target }}/*
+
+  publish-release:
+    needs:
+      - metadata
+      - linux
+      - darwin
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.metadata.outputs.release_tag }}
+          name: ${{ needs.metadata.outputs.release_tag }}
+          files: dist/**
+          prerelease: true

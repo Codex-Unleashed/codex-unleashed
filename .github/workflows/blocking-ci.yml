@@ -6,6 +6,11 @@ on:
     branches: [main]
 
 jobs:
+  blob-size-policy:
+    name: blob-size-policy
+    uses: ./.github/workflows/blob-size-policy.yml
+    secrets: inherit
+
   cargo-deny:
     name: cargo-deny
     uses: ./.github/workflows/cargo-deny.yml
@@ -43,6 +48,7 @@ jobs:
     name: CI required
     if: ${{ always() }}
     needs:
+      - blob-size-policy
       - cargo-deny
       - codespell
       - repo-checks

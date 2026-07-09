@@ -1,0 +1,32 @@
+name: rust-release-argument-comment-lint
+
+on:
+  workflow_call:
+    inputs:
+      publish:
+        required: true
+        type: boolean
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "Build hosted-runner argument-comment-lint artifacts."
+        required: true
+        default: false
+        type: boolean
+
+jobs:
+  skip:
+    if: ${{ !inputs.publish }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Skipping argument-comment-lint release assets."
+
+  compatibility-wrapper:
+    if: ${{ inputs.publish }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Explain consolidated release helper path
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "codex-fixes does not currently publish argument-comment-lint as a standalone release asset. Upstream's helper remains split because of custom-runner topology and separate release needs."

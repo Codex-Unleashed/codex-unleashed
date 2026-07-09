@@ -49,11 +49,89 @@ jobs:
               /tmp/uv/bin/uv run --frozen --no-sync pytest
             '
 
+      - name: Check for a clean worktree
+        if: always() && !cancelled()
+        uses: ./.github/actions/check-clean-worktree
+
   sdks:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - name: Placeholder
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/prepare-patched-upstream
+        with:
+          upstream-ref: ${{ inputs.upstream_ref || 'main' }}
+          fallback-to-default-branch: "true"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+          run_install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: upstream/pnpm-lock.yaml
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            upstream/codex-rs -> target
+          key: sdk-${{ inputs.upstream_ref || 'main' }}
+
+      - name: Install Linux build dependencies
         shell: bash
         run: |
           set -euo pipefail
-          echo "TODO: upstream TypeScript/Bazel SDK workflow depends on fuller Bazel parity and upstream-specific cache/layout assumptions."
+          sudo apt-get update -y
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends pkg-config libcap-dev
+
+      - name: Install workspace dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd upstream
+          pnpm install --frozen-lockfile
+
+      - name: Build patched codex binary for SDK tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo build --manifest-path upstream/codex-rs/Cargo.toml --bin codex
+
+      - name: Build TypeScript SDK packages
+        shell: bash
+        env:
+          CODEX_EXEC_PATH: ${{ github.workspace }}/upstream/codex-rs/target/debug/codex
+        run: |
+          set -euo pipefail
+          pnpm --dir upstream/sdk/typescript run build
+
+      - name: Lint TypeScript SDK packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm --dir upstream/sdk/typescript run lint
+
+      - name: Test TypeScript SDK packages
+        shell: bash
+        env:
+          CODEX_EXEC_PATH: ${{ github.workspace }}/upstream/codex-rs/target/debug/codex
+        run: |
+          set -euo pipefail
+          pnpm --dir upstream/sdk/typescript run test
+
+      - name: Check for a clean worktree
+        if: always() && !cancelled()
+        uses: ./.github/actions/check-clean-worktree
