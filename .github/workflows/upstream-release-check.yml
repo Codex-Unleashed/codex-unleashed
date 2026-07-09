@@ -855,6 +855,10 @@ jobs:
 
       - uses: ./.github/actions/setup-ci
 
+      - uses: ./.github/actions/prepare-patched-upstream
+        with:
+          upstream-ref: ${{ needs.prepare.outputs.upstream_tag }}
+
       - name: Download prebuilt Windows primary binaries
         uses: actions/download-artifact@v4
         with:
