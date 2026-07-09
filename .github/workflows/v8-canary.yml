@@ -151,9 +151,10 @@ jobs:
           upstream-ref: ${{ inputs.upstream_ref || 'main' }}
           fallback-to-default-branch: "true"
 
-      - uses: bazel-contrib/setup-bazel@v0.19.0
+      - name: Set up Bazel
+        uses: ./.github/actions/setup-bazel-ci
         with:
-          bazelisk-version: 1.28.1
+          target: ${{ matrix.target }}
 
       - uses: actions/setup-python@v5
         with:

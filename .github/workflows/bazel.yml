@@ -51,9 +51,10 @@ jobs:
           upstream-ref: ${{ inputs.upstream_ref || 'main' }}
           fallback-to-default-branch: "true"
 
-      - uses: bazel-contrib/setup-bazel@v0.19.0
+      - name: Set up Bazel
+        uses: ./.github/actions/setup-bazel-ci
         with:
-          bazelisk-version: 1.28.1
+          target: ${{ matrix.target }}
 
       - uses: actions/setup-python@v5
         with:
@@ -144,9 +145,10 @@ jobs:
           upstream-ref: ${{ inputs.upstream_ref || 'main' }}
           fallback-to-default-branch: "true"
 
-      - uses: bazel-contrib/setup-bazel@v0.19.0
+      - name: Set up Bazel
+        uses: ./.github/actions/setup-bazel-ci
         with:
-          bazelisk-version: 1.28.1
+          target: x86_64-pc-windows-gnullvm
 
       - name: Test BuildBuddy Bazel wrapper
         if: matrix.shard == 1
@@ -234,9 +236,10 @@ jobs:
           upstream-ref: ${{ inputs.upstream_ref || 'main' }}
           fallback-to-default-branch: "true"
 
-      - uses: bazel-contrib/setup-bazel@v0.19.0
+      - name: Set up Bazel
+        uses: ./.github/actions/setup-bazel-ci
         with:
-          bazelisk-version: 1.28.1
+          target: x86_64-pc-windows-gnullvm
 
       - name: bazel test //...
         env:
@@ -304,9 +307,10 @@ jobs:
           upstream-ref: ${{ inputs.upstream_ref || 'main' }}
           fallback-to-default-branch: "true"
 
-      - uses: bazel-contrib/setup-bazel@v0.19.0
+      - name: Set up Bazel
+        uses: ./.github/actions/setup-bazel-ci
         with:
-          bazelisk-version: 1.28.1
+          target: ${{ matrix.target }}
 
       - name: bazel build --config=clippy lint targets
         env:
@@ -380,9 +384,10 @@ jobs:
           upstream-ref: ${{ inputs.upstream_ref || 'main' }}
           fallback-to-default-branch: "true"
 
-      - uses: bazel-contrib/setup-bazel@v0.19.0
+      - name: Set up Bazel
+        uses: ./.github/actions/setup-bazel-ci
         with:
-          bazelisk-version: 1.28.1
+          target: ${{ matrix.target }}
 
       - name: Verify release build
         env:
