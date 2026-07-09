@@ -817,10 +817,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p "symbols-dist/${{ matrix.target }}"
-          tar -C "$CARGO_TARGET_DIR/${{ matrix.target }}/release" \
-            -czf "symbols-dist/${{ matrix.target }}/${{ matrix.target }}-symbols.tar.gz" \
-            ./*.pdb
+          bash "${GITHUB_WORKSPACE}/.github/scripts/archive-release-symbols-and-strip-binaries.sh" \
+            --target "${{ matrix.target }}" \
+            --artifact-name "${{ matrix.target }}" \
+            --release-dir "${CARGO_TARGET_DIR}/${{ matrix.target }}/release" \
+            --archive-dir "symbols-dist/${{ matrix.target }}" \
+            --binaries "${WINDOWS_BINARIES}"
 
       - name: Upload symbols archive
         uses: actions/upload-artifact@v4
