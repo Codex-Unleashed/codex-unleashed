@@ -794,6 +794,8 @@ jobs:
     if: needs.prepare.outputs.should_release == 'true'
     name: Build Windows symbols - ${{ matrix.target }}
     runs-on: ubuntu-latest
+    env:
+      WINDOWS_BINARIES: "codex codex-code-mode-host codex-responses-api-proxy codex-windows-sandbox-setup codex-command-runner codex-app-server"
     strategy:
       fail-fast: false
       matrix:
