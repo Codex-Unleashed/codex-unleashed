@@ -50,8 +50,35 @@ jobs:
           INPUT_UPSTREAM_TAG: ${{ inputs.upstream_tag || '' }}
           INPUT_PATCH_RELEASE_NUMBER: ${{ inputs.patch_release_number || '' }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_API_URL: ${{ github.api_url }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_WORKFLOW: ${{ github.workflow }}
         run: |
           set -euo pipefail
+
+          active_run_ids="$(
+            gh api \
+              "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/actions/runs" \
+              --paginate \
+              -f status=in_progress \
+              -q '.workflow_runs[]
+                | select(.name == env.GITHUB_WORKFLOW)
+                | .id'
+          )"
+          if [[ -n "${active_run_ids}" ]]; then
+            oldest_active_run_id="$(printf '%s\n' "${active_run_ids}" | sort -n | head -n1)"
+            if [[ -n "${oldest_active_run_id}" && "${oldest_active_run_id}" != "${GITHUB_RUN_ID}" ]]; then
+              echo "Another ${GITHUB_WORKFLOW} run is already active (${oldest_active_run_id}); skipping duplicate run ${GITHUB_RUN_ID}."
+              echo "should_release=false" >> "${GITHUB_OUTPUT}"
+              echo "upstream_tag=" >> "${GITHUB_OUTPUT}"
+              echo "patched_tag=" >> "${GITHUB_OUTPUT}"
+              echo "build_date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "${GITHUB_OUTPUT}"
+              echo "patch_files=" >> "${GITHUB_OUTPUT}"
+              echo "supported_targets=" >> "${GITHUB_OUTPUT}"
+              exit 0
+            fi
+          fi
 
           patch_release="${INPUT_PATCH_RELEASE_NUMBER:-0}"
           build_date="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
