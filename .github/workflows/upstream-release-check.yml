@@ -257,6 +257,7 @@ jobs:
           - runner: macos-15
             target: x86_64-apple-darwin
             bundle: primary
+            timeout_minutes: 120
             artifact_name: x86_64-apple-darwin
             binaries: "codex codex-code-mode-host codex-responses-api-proxy"
           - runner: macos-15
