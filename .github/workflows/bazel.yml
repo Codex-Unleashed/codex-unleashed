@@ -331,19 +331,33 @@ jobs:
             bazel_target_list_args+=(--windows-cross-compile)
             bazel_clippy_args+=(--skip_incompatible_explicit_targets)
           fi
-          bazel_target_lines="$(./scripts/list-bazel-clippy-targets.sh "${bazel_target_list_args[@]}")"
+          if [[ "${RUNNER_OS}" == "Windows" ]]; then
+            bazel_target_lines="$(./scripts/list-bazel-clippy-targets.sh --windows-cross-compile)"
+          else
+            bazel_target_lines="$(./scripts/list-bazel-clippy-targets.sh)"
+          fi
           bazel_targets=()
           while IFS= read -r target; do
             bazel_targets+=("${target}")
           done <<< "${bazel_target_lines}"
-          ./.github/scripts/run-bazel-ci.sh \
-            --print-failed-action-summary \
-            "${bazel_wrapper_args[@]}" \
-            -- \
-            build \
-            "${bazel_clippy_args[@]}" \
-            -- \
-            "${bazel_targets[@]}"
+          if [[ "${RUNNER_OS}" == "Windows" ]]; then
+            ./.github/scripts/run-bazel-ci.sh \
+              --print-failed-action-summary \
+              --windows-cross-compile \
+              -- \
+              build \
+              "${bazel_clippy_args[@]}" \
+              -- \
+              "${bazel_targets[@]}"
+          else
+            ./.github/scripts/run-bazel-ci.sh \
+              --print-failed-action-summary \
+              -- \
+              build \
+              "${bazel_clippy_args[@]}" \
+              -- \
+              "${bazel_targets[@]}"
+          fi
 
       - name: Upload Bazel execution logs
         if: always() && !cancelled()
@@ -413,14 +427,25 @@ jobs:
           while IFS= read -r target; do
             bazel_targets+=("${target}")
           done <<< "${bazel_target_lines}"
-          ./.github/scripts/run-bazel-ci.sh \
-            --print-failed-action-summary \
-            "${bazel_wrapper_args[@]}" \
-            -- \
-            build \
-            "${bazel_build_args[@]}" \
-            -- \
-            "${bazel_targets[@]}"
+          if [[ "${RUNNER_OS}" == "Windows" ]]; then
+            ./.github/scripts/run-bazel-ci.sh \
+              --print-failed-action-summary \
+              --windows-cross-compile \
+              --remote-download-toplevel \
+              -- \
+              build \
+              "${bazel_build_args[@]}" \
+              -- \
+              "${bazel_targets[@]}"
+          else
+            ./.github/scripts/run-bazel-ci.sh \
+              --print-failed-action-summary \
+              -- \
+              build \
+              "${bazel_build_args[@]}" \
+              -- \
+              "${bazel_targets[@]}"
+          fi
 
       - name: Upload Bazel execution logs
         if: always() && !cancelled()
