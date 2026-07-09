@@ -292,7 +292,7 @@ else
     export LIBSQLITE3_FLAGS=SQLITE_DISABLE_INTRINSIC
   fi
 
-  if [[ "${build_target}" == *linux* && " ${release_binaries} " == *" bwrap "* ]]; then
+  if [[ "${build_target}" == *linux* ]]; then
     prepare_linux_bwrap_digest "${build_target}"
   fi
 
