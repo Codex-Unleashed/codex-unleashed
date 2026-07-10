@@ -1,6 +1,10 @@
-# Release Manifest
+# Release Verification Tooling
 
-Each published patched release includes a machine-readable `release-manifest.json`.
+Public releases contain only the runnable package archives and
+`SHA256SUMS.release.txt`, which is sufficient for normal download verification.
+
+The repository retains the manifest generator and verifier for maintainer use and
+for private release audits; their output is not published as a release asset.
 
 The manifest records:
 
