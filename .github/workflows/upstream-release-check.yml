@@ -47,6 +47,7 @@ jobs:
       upstream_tag: ${{ steps.prepare.outputs.upstream_tag }}
       upstream_sha: ${{ steps.prepare.outputs.upstream_sha }}
       patched_tag: ${{ steps.prepare.outputs.patched_tag }}
+      release_name: ${{ steps.prepare.outputs.release_name }}
       build_date: ${{ steps.prepare.outputs.build_date }}
       patch_files: ${{ steps.prepare.outputs.patch_files }}
       supported_targets: ${{ steps.prepare.outputs.supported_targets }}
@@ -98,6 +99,7 @@ jobs:
               echo "should_release=false" >> "${GITHUB_OUTPUT}"
               echo "upstream_tag=" >> "${GITHUB_OUTPUT}"
               echo "patched_tag=" >> "${GITHUB_OUTPUT}"
+              echo "release_name=" >> "${GITHUB_OUTPUT}"
               echo "build_date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "${GITHUB_OUTPUT}"
               echo "patch_files=" >> "${GITHUB_OUTPUT}"
               echo "supported_targets=" >> "${GITHUB_OUTPUT}"
@@ -119,6 +121,7 @@ jobs:
             upstream_tag="$(jq -er '.upstream_tag' "${metadata_file}")"
             upstream_sha="$(jq -er '.upstream_sha' "${metadata_file}")"
             patched_tag="$(jq -er '.patched_tag' "${metadata_file}")"
+            release_name="$(jq -er '.release_name // (.patched_tag | sub("^rust-v"; ""))' "${metadata_file}")"
             build_date="$(jq -er '.build_date' "${metadata_file}")"
             patch_files="$(jq -er '.patch_files' "${metadata_file}")"
             supported_targets="$(jq -er '.supported_targets' "${metadata_file}")"
@@ -134,6 +137,7 @@ jobs:
               echo "upstream_tag=${upstream_tag}" >> "${GITHUB_OUTPUT}"
               echo "upstream_sha=${upstream_sha}" >> "${GITHUB_OUTPUT}"
               echo "patched_tag=${patched_tag}" >> "${GITHUB_OUTPUT}"
+              echo "release_name=${release_name}" >> "${GITHUB_OUTPUT}"
               echo "build_date=${build_date}" >> "${GITHUB_OUTPUT}"
               echo "patch_files=${patch_files}" >> "${GITHUB_OUTPUT}"
               echo "supported_targets=${supported_targets}" >> "${GITHUB_OUTPUT}"
@@ -147,6 +151,7 @@ jobs:
             echo "upstream_tag=${upstream_tag}" >> "${GITHUB_OUTPUT}"
             echo "upstream_sha=${upstream_sha}" >> "${GITHUB_OUTPUT}"
             echo "patched_tag=${patched_tag}" >> "${GITHUB_OUTPUT}"
+            echo "release_name=${release_name}" >> "${GITHUB_OUTPUT}"
             echo "build_date=${build_date}" >> "${GITHUB_OUTPUT}"
             echo "patch_files=${patch_files}" >> "${GITHUB_OUTPUT}"
             echo "supported_targets=${supported_targets}" >> "${GITHUB_OUTPUT}"
@@ -170,6 +175,7 @@ jobs:
           fi
 
           patched_tag="${upstream_tag}.${patch_release}"
+          release_name="${patched_tag#rust-v}"
           failure_marker_name="failed-upstream-release-${patched_tag}-${GITHUB_SHA}"
           export failure_marker_name
 
@@ -219,17 +225,19 @@ jobs:
             --arg upstream_tag "${upstream_tag}" \
             --arg upstream_sha "${upstream_sha}" \
             --arg patched_tag "${patched_tag}" \
+            --arg release_name "${release_name}" \
             --arg build_date "${build_date}" \
             --arg patch_files "${patch_files}" \
             --arg patch_hash "${patch_hash}" \
             --arg supported_targets "${supported_targets}" \
-            '{schema_version: 1, artifact_run_id: $artifact_run_id, upstream_tag: $upstream_tag, upstream_sha: $upstream_sha, patched_tag: $patched_tag, build_date: $build_date, patch_files: $patch_files, patch_hash: $patch_hash, supported_targets: $supported_targets}' \
+            '{schema_version: 1, artifact_run_id: $artifact_run_id, upstream_tag: $upstream_tag, upstream_sha: $upstream_sha, patched_tag: $patched_tag, release_name: $release_name, build_date: $build_date, patch_files: $patch_files, patch_hash: $patch_hash, supported_targets: $supported_targets}' \
             > release-metadata.json
 
           echo "should_release=true" >> "${GITHUB_OUTPUT}"
           echo "upstream_tag=${upstream_tag}" >> "${GITHUB_OUTPUT}"
           echo "upstream_sha=${upstream_sha}" >> "${GITHUB_OUTPUT}"
           echo "patched_tag=${patched_tag}" >> "${GITHUB_OUTPUT}"
+          echo "release_name=${release_name}" >> "${GITHUB_OUTPUT}"
           echo "build_date=${build_date}" >> "${GITHUB_OUTPUT}"
           echo "patch_files=${patch_files}" >> "${GITHUB_OUTPUT}"
           echo "supported_targets=${supported_targets}" >> "${GITHUB_OUTPUT}"
@@ -1124,13 +1132,17 @@ jobs:
           dest="dist/${{ matrix.target }}"
           repo_root=$PWD
           target="${{ matrix.target }}"
-          export dest repo_root target
+          zstd_wrapper="${GITHUB_WORKSPACE}/upstream/.github/workflows/zstd"
+          export dest repo_root target zstd_wrapper
           printf '%s\0' "$dest"/* |
             xargs -0 -n1 -P2 bash -c '
             set -euo pipefail
             f=$1
             base="$(basename "$f")"
-            if [[ "$base" == *.tar.gz || "$base" == *.zip ]]; then
+            if [[ "$base" == *.tar.gz || "$base" == *.tar.zst || "$base" == *.zip || "$base" == *.dmg ]]; then
+              exit 0
+            fi
+            if [[ "$base" == *.sigstore ]]; then
               exit 0
             fi
             tar -C "$dest" -czf "$dest/${base}.tar.gz" "$base"
@@ -1144,6 +1156,7 @@ jobs:
             else
               (cd "$dest" && 7z a "${base}.zip" "$base")
             fi
+            "$zstd_wrapper" -T0 -19 "$dest/$base"
           ' _
 
       - name: Generate checksums
@@ -1189,6 +1202,14 @@ jobs:
       - name: Checkout patch repo
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
+      - name: Checkout upstream release metadata
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: openai/codex
+          ref: ${{ needs.prepare.outputs.upstream_tag }}
+          path: upstream-release-source
+          fetch-depth: 1
+
       - name: Download target artifacts
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
@@ -1214,15 +1235,11 @@ jobs:
           mkdir -p release-stage
           declare -A seen=()
           while IFS= read -r -d '' file; do
-            parent="$(basename "$(dirname "$file")")"
             base="$(basename "$file")"
-            if [[ "$base" == "cargo-timing.html" ]]; then
+            if [[ "$base" == "cargo-timing.html" || "$base" == "SHA256SUMS" ]]; then
               continue
             fi
             staged_name="$base"
-            if [[ "$base" == "SHA256SUMS" ]]; then
-              staged_name="SHA256SUMS-${parent}.txt"
-            fi
             if [[ -n "${seen[$staged_name]+x}" ]]; then
               echo "ERROR: duplicate release asset name after staging: ${staged_name}" >&2
               exit 1
@@ -1230,6 +1247,29 @@ jobs:
             seen[$staged_name]=1
             cp "$file" "release-stage/${staged_name}"
           done < <(find release-artifacts -type f -print0 | sort -z)
+
+      - name: Add upstream release metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp upstream-release-source/codex-rs/core/config.schema.json release-stage/config-schema.json
+          cp upstream-release-source/scripts/install/install.sh release-stage/install.sh
+          cp upstream-release-source/scripts/install/install.ps1 release-stage/install.ps1
+
+      - name: Generate package checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          manifest="release-stage/codex-package_SHA256SUMS"
+          tmp_manifest="$(mktemp)"
+          find release-stage -maxdepth 1 -type f \
+            \( -name 'codex-package-*.tar.gz' -o -name 'codex-app-server-package-*.tar.gz' \) \
+            -print |
+            sort |
+            while IFS= read -r archive; do
+              sha256sum "$archive" | awk -v name="$(basename "$archive")" '{ print $1 "  " name }'
+            done > "$tmp_manifest"
+          mv "$tmp_manifest" "$manifest"
 
       - name: Generate release manifest
         shell: bash
@@ -1289,14 +1329,15 @@ jobs:
             patch_files="none"
           fi
           cat > RELEASE_NOTES.md <<EOF
-          # Codex Fixes ${{ needs.prepare.outputs.patched_tag }}
+          # Codex Fixes ${{ needs.prepare.outputs.release_name }}
 
           - Upstream Codex version/tag: ${{ needs.prepare.outputs.upstream_tag }}
           - Upstream commit SHA: ${{ needs.prepare.outputs.upstream_sha }}
           - Patch files applied: ${patch_files}
           - Build date: ${{ needs.prepare.outputs.build_date }}
           - Supported platforms: ${{ needs.prepare.outputs.supported_targets }}
-          - Checksums: Included in uploaded \`SHA256SUMS-*.txt\` files and \`SHA256SUMS.release.txt\`
+          - Package checksums: Included in \`codex-package_SHA256SUMS\`
+          - Release checksums: Included in \`SHA256SUMS.release.txt\`
           - Release manifest: Included in uploaded \`release-manifest.json\`
           - Attestation bundle: Included in uploaded \`release-provenance.intoto.jsonl\`
 
@@ -1307,7 +1348,7 @@ jobs:
         uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe # v2.6.1
         with:
           tag_name: ${{ needs.prepare.outputs.patched_tag }}
-          name: ${{ needs.prepare.outputs.patched_tag }}
+          name: ${{ needs.prepare.outputs.release_name }}
           body_path: RELEASE_NOTES.md
           files: release-stage/*
 
