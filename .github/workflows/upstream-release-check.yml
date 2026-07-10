@@ -11,6 +11,10 @@ on:
         description: "Optional patched release suffix override. Defaults to 0."
         required: false
         type: string
+      artifact_run_id:
+        description: "Optional completed build run to reuse for publishing."
+        required: false
+        type: string
   schedule:
     - cron: "0 * * * *"
   workflow_dispatch:
@@ -21,6 +25,10 @@ on:
         type: string
       patch_release_number:
         description: "Optional patched release suffix override. Defaults to 0."
+        required: false
+        type: string
+      artifact_run_id:
+        description: "Optional completed build run to reuse for publishing."
         required: false
         type: string
 
@@ -42,9 +50,20 @@ jobs:
       build_date: ${{ steps.prepare.outputs.build_date }}
       patch_files: ${{ steps.prepare.outputs.patch_files }}
       supported_targets: ${{ steps.prepare.outputs.supported_targets }}
+      patch_hash: ${{ steps.prepare.outputs.patch_hash }}
+      artifact_run_id: ${{ steps.prepare.outputs.artifact_run_id }}
     steps:
       - name: Checkout patch repo
         uses: actions/checkout@v4
+
+      - name: Download metadata for artifact reuse
+        if: ${{ inputs.artifact_run_id != '' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: release-metadata
+          path: reused-metadata
+          run-id: ${{ inputs.artifact_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Determine upstream release
         id: prepare
@@ -52,6 +71,7 @@ jobs:
         env:
           INPUT_UPSTREAM_TAG: ${{ inputs.upstream_tag || '' }}
           INPUT_PATCH_RELEASE_NUMBER: ${{ inputs.patch_release_number || '' }}
+          INPUT_ARTIFACT_RUN_ID: ${{ inputs.artifact_run_id || '' }}
           GITHUB_EVENT_NAME: ${{ github.event_name }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
@@ -71,7 +91,7 @@ jobs:
                 | .id' \
               2>/dev/null | grep -E '^[0-9]+$' || true
           )"
-          if [[ -n "${active_run_ids}" ]]; then
+          if [[ -z "${INPUT_ARTIFACT_RUN_ID}" && -n "${active_run_ids}" ]]; then
             oldest_active_run_id="$(printf '%s\n' "${active_run_ids}" | sort -n | head -n1)"
             if [[ -n "${oldest_active_run_id}" && "${oldest_active_run_id}" != "${GITHUB_RUN_ID}" ]]; then
               echo "Another ${GITHUB_WORKFLOW} run is already active (${oldest_active_run_id}); skipping duplicate run ${GITHUB_RUN_ID}."
@@ -81,8 +101,58 @@ jobs:
               echo "build_date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "${GITHUB_OUTPUT}"
               echo "patch_files=" >> "${GITHUB_OUTPUT}"
               echo "supported_targets=" >> "${GITHUB_OUTPUT}"
+              echo "patch_hash=" >> "${GITHUB_OUTPUT}"
+              echo "artifact_run_id=" >> "${GITHUB_OUTPUT}"
               exit 0
             fi
+          fi
+
+          patch_hash="$(find patches -type f -name '*.patch' -print0 | sort -z | xargs -0 -r sha256sum | sha256sum | awk '{print $1}')"
+
+          if [[ -n "${INPUT_ARTIFACT_RUN_ID}" ]]; then
+            metadata_file="$(find reused-metadata -type f -name '*.json' -print -quit)"
+            if [[ -z "${metadata_file}" ]]; then
+              echo "ERROR: build run ${INPUT_ARTIFACT_RUN_ID} did not provide release metadata." >&2
+              exit 1
+            fi
+
+            upstream_tag="$(jq -er '.upstream_tag' "${metadata_file}")"
+            upstream_sha="$(jq -er '.upstream_sha' "${metadata_file}")"
+            patched_tag="$(jq -er '.patched_tag' "${metadata_file}")"
+            build_date="$(jq -er '.build_date' "${metadata_file}")"
+            patch_files="$(jq -er '.patch_files' "${metadata_file}")"
+            supported_targets="$(jq -er '.supported_targets' "${metadata_file}")"
+            metadata_patch_hash="$(jq -er '.patch_hash' "${metadata_file}")"
+
+            if [[ "${patch_hash}" != "${metadata_patch_hash}" ]]; then
+              echo "ERROR: current patch files do not match build run ${INPUT_ARTIFACT_RUN_ID}." >&2
+              exit 1
+            fi
+            if gh release view "${patched_tag}" >/dev/null 2>&1; then
+              echo "Patched release ${patched_tag} already exists."
+              echo "should_release=false" >> "${GITHUB_OUTPUT}"
+              echo "upstream_tag=${upstream_tag}" >> "${GITHUB_OUTPUT}"
+              echo "upstream_sha=${upstream_sha}" >> "${GITHUB_OUTPUT}"
+              echo "patched_tag=${patched_tag}" >> "${GITHUB_OUTPUT}"
+              echo "build_date=${build_date}" >> "${GITHUB_OUTPUT}"
+              echo "patch_files=${patch_files}" >> "${GITHUB_OUTPUT}"
+              echo "supported_targets=${supported_targets}" >> "${GITHUB_OUTPUT}"
+              echo "patch_hash=${patch_hash}" >> "${GITHUB_OUTPUT}"
+              echo "artifact_run_id=${INPUT_ARTIFACT_RUN_ID}" >> "${GITHUB_OUTPUT}"
+              exit 0
+            fi
+
+            echo "Reusing final artifacts from build run ${INPUT_ARTIFACT_RUN_ID} for ${patched_tag}."
+            echo "should_release=true" >> "${GITHUB_OUTPUT}"
+            echo "upstream_tag=${upstream_tag}" >> "${GITHUB_OUTPUT}"
+            echo "upstream_sha=${upstream_sha}" >> "${GITHUB_OUTPUT}"
+            echo "patched_tag=${patched_tag}" >> "${GITHUB_OUTPUT}"
+            echo "build_date=${build_date}" >> "${GITHUB_OUTPUT}"
+            echo "patch_files=${patch_files}" >> "${GITHUB_OUTPUT}"
+            echo "supported_targets=${supported_targets}" >> "${GITHUB_OUTPUT}"
+            echo "patch_hash=${patch_hash}" >> "${GITHUB_OUTPUT}"
+            echo "artifact_run_id=${INPUT_ARTIFACT_RUN_ID}" >> "${GITHUB_OUTPUT}"
+            exit 0
           fi
 
           patch_release="${INPUT_PATCH_RELEASE_NUMBER:-0}"
@@ -110,6 +180,8 @@ jobs:
             echo "patched_tag=${patched_tag}" >> "${GITHUB_OUTPUT}"
             echo "build_date=${build_date}" >> "${GITHUB_OUTPUT}"
             echo "patch_files=$(find patches -type f -name '*.patch' -printf '%P ' | sed 's/[[:space:]]*$//')" >> "${GITHUB_OUTPUT}"
+            echo "patch_hash=${patch_hash}" >> "${GITHUB_OUTPUT}"
+            echo "artifact_run_id=" >> "${GITHUB_OUTPUT}"
             exit 0
           fi
 
@@ -131,6 +203,8 @@ jobs:
               echo "build_date=${build_date}" >> "${GITHUB_OUTPUT}"
               echo "patch_files=$(find patches -type f -name '*.patch' -printf '%P ' | sed 's/[[:space:]]*$//')" >> "${GITHUB_OUTPUT}"
               echo "supported_targets=" >> "${GITHUB_OUTPUT}"
+              echo "patch_hash=${patch_hash}" >> "${GITHUB_OUTPUT}"
+              echo "artifact_run_id=" >> "${GITHUB_OUTPUT}"
               exit 0
             fi
           fi
@@ -140,6 +214,18 @@ jobs:
           patch_files="$(find patches -type f -name '*.patch' -printf '%P ' | sed 's/[[:space:]]*$//')"
           supported_targets="x86_64-unknown-linux-musl, aarch64-unknown-linux-musl, x86_64-apple-darwin, aarch64-apple-darwin, x86_64-pc-windows-msvc, aarch64-pc-windows-msvc"
 
+          jq -n \
+            --arg artifact_run_id "${GITHUB_RUN_ID}" \
+            --arg upstream_tag "${upstream_tag}" \
+            --arg upstream_sha "${upstream_sha}" \
+            --arg patched_tag "${patched_tag}" \
+            --arg build_date "${build_date}" \
+            --arg patch_files "${patch_files}" \
+            --arg patch_hash "${patch_hash}" \
+            --arg supported_targets "${supported_targets}" \
+            '{schema_version: 1, artifact_run_id: $artifact_run_id, upstream_tag: $upstream_tag, upstream_sha: $upstream_sha, patched_tag: $patched_tag, build_date: $build_date, patch_files: $patch_files, patch_hash: $patch_hash, supported_targets: $supported_targets}' \
+            > release-metadata.json
+
           echo "should_release=true" >> "${GITHUB_OUTPUT}"
           echo "upstream_tag=${upstream_tag}" >> "${GITHUB_OUTPUT}"
           echo "upstream_sha=${upstream_sha}" >> "${GITHUB_OUTPUT}"
@@ -147,10 +233,24 @@ jobs:
           echo "build_date=${build_date}" >> "${GITHUB_OUTPUT}"
           echo "patch_files=${patch_files}" >> "${GITHUB_OUTPUT}"
           echo "supported_targets=${supported_targets}" >> "${GITHUB_OUTPUT}"
+          echo "patch_hash=${patch_hash}" >> "${GITHUB_OUTPUT}"
+          echo "artifact_run_id=${GITHUB_RUN_ID}" >> "${GITHUB_OUTPUT}"
+
+      - name: Upload build metadata
+        if: ${{ steps.prepare.outputs.should_release == 'true' && inputs.artifact_run_id == '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-metadata
+          path: release-metadata.json
+          retention-days: 30
 
   verify:
     needs: prepare
-    if: needs.prepare.outputs.should_release == 'true'
+    if: >-
+      ${{
+        needs.prepare.outputs.should_release == 'true' &&
+        needs.prepare.outputs.artifact_run_id == github.run_id
+      }}
     runs-on: ubuntu-latest
     steps:
       - name: Record job start
@@ -224,7 +324,7 @@ jobs:
         with:
           workspaces: |
             upstream/codex-rs -> target
-          key: verify-${{ needs.prepare.outputs.upstream_tag }}
+          key: verify-${{ needs.prepare.outputs.upstream_sha }}-${{ needs.prepare.outputs.patch_hash }}
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Install upstream dependencies
@@ -260,7 +360,11 @@ jobs:
     needs:
       - prepare
       - verify
-    if: needs.prepare.outputs.should_release == 'true'
+    if: >-
+      ${{
+        needs.prepare.outputs.should_release == 'true' &&
+        needs.prepare.outputs.artifact_run_id == github.run_id
+      }}
     name: Build - ${{ matrix.runner }} - ${{ matrix.target }} - ${{ matrix.bundle }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: ${{ matrix.timeout_minutes || 180 }}
@@ -441,8 +545,8 @@ jobs:
         with:
           workspaces: |
             upstream/codex-rs -> target
-          key: build-${{ matrix.target }}-${{ needs.prepare.outputs.upstream_tag }}
-          save-if: false
+          key: build-${{ matrix.target }}-${{ matrix.bundle }}-${{ needs.prepare.outputs.upstream_sha }}-${{ needs.prepare.outputs.patch_hash }}
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Cache rusty_v8 artifacts
         id: rusty_v8_cache
@@ -702,7 +806,11 @@ jobs:
     needs:
       - prepare
       - verify
-    if: needs.prepare.outputs.should_release == 'true'
+    if: >-
+      ${{
+        needs.prepare.outputs.should_release == 'true' &&
+        needs.prepare.outputs.artifact_run_id == github.run_id
+      }}
     name: Build Windows binaries - ${{ matrix.target }} - ${{ matrix.bundle }}
     runs-on: windows-latest
     timeout-minutes: ${{ matrix.timeout_minutes || 180 }}
@@ -790,8 +898,8 @@ jobs:
         with:
           workspaces: |
             upstream/codex-rs -> target
-          key: build-windows-${{ matrix.target }}-${{ matrix.bundle }}-${{ needs.prepare.outputs.upstream_tag }}
-          save-if: false
+          key: build-windows-${{ matrix.target }}-${{ matrix.bundle }}-${{ needs.prepare.outputs.upstream_sha }}-${{ needs.prepare.outputs.patch_hash }}
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Cargo build (Windows binaries)
         working-directory: upstream/codex-rs
@@ -844,7 +952,11 @@ jobs:
     needs:
       - build-windows-binaries
       - prepare
-    if: needs.prepare.outputs.should_release == 'true'
+    if: >-
+      ${{
+        needs.prepare.outputs.should_release == 'true' &&
+        needs.prepare.outputs.artifact_run_id == github.run_id
+      }}
     name: Build Windows symbols - ${{ matrix.target }}
     runs-on: ubuntu-latest
     env:
@@ -891,7 +1003,11 @@ jobs:
       - build-windows-binaries
       - build-windows-symbols
       - prepare
-    if: needs.prepare.outputs.should_release == 'true'
+    if: >-
+      ${{
+        needs.prepare.outputs.should_release == 'true' &&
+        needs.prepare.outputs.artifact_run_id == github.run_id
+      }}
     name: Build - windows-latest - ${{ matrix.target }}
     runs-on: windows-latest
     strategy:
@@ -1050,9 +1166,22 @@ jobs:
       - build-unix
       - build-windows-package
       - build-windows-symbols
-    if: needs.prepare.outputs.should_release == 'true'
+    if: >-
+      ${{
+        always() &&
+        needs.prepare.outputs.should_release == 'true' &&
+        (
+          needs.prepare.outputs.artifact_run_id != github.run_id ||
+          (
+            needs['build-unix'].result == 'success' &&
+            needs['build-windows-package'].result == 'success' &&
+            needs['build-windows-symbols'].result == 'success'
+          )
+        )
+      }}
     runs-on: ubuntu-latest
     permissions:
+      actions: read
       attestations: write
       contents: write
       id-token: write
@@ -1064,6 +1193,8 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: release-artifacts
+          run-id: ${{ needs.prepare.outputs.artifact_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           # Match upstream's release workflow: only download final target
           # packages, not the intermediate build and timing artifacts.
           pattern: "{aarch64,x86_64}-{apple-darwin{,-app-server},unknown-linux-musl{,-app-server},pc-windows-msvc}"
@@ -1072,6 +1203,8 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: release-artifacts
+          run-id: ${{ needs.prepare.outputs.artifact_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           pattern: "{*-symbols,python-runtime-wheel-*}"
 
       - name: Stage release assets
