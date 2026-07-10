@@ -1328,20 +1328,57 @@ jobs:
           if [[ -z "${patch_files}" ]]; then
             patch_files="none"
           fi
+          patch_list=""
+          if [[ "${patch_files}" == "none" ]]; then
+            patch_list="- None"
+          else
+            for patch_file in ${patch_files}; do
+              patch_list+="- \`${patch_file}\`"$'\n'
+            done
+            patch_list="${patch_list%$'\n'}"
+          fi
           cat > RELEASE_NOTES.md <<EOF
           # Codex Fixes ${{ needs.prepare.outputs.release_name }}
 
-          - Upstream Codex version/tag: ${{ needs.prepare.outputs.upstream_tag }}
-          - Upstream commit SHA: ${{ needs.prepare.outputs.upstream_sha }}
-          - Patch files applied: ${patch_files}
-          - Build date: ${{ needs.prepare.outputs.build_date }}
-          - Supported platforms: ${{ needs.prepare.outputs.supported_targets }}
-          - Package checksums: Included in \`codex-package_SHA256SUMS\`
-          - Release checksums: Included in \`SHA256SUMS.release.txt\`
-          - Release manifest: Included in uploaded \`release-manifest.json\`
-          - Attestation bundle: Included in uploaded \`release-provenance.intoto.jsonl\`
+          > A public patched Codex build for users who need targeted fixes sooner than the upstream release cycle.
 
-          This is an unofficial patch release and is not affiliated with or endorsed by OpenAI.
+          > **Unofficial:** This distribution is not affiliated with or endorsed by OpenAI.
+
+          ## Start here
+
+          1. Choose the recommended package for your platform below.
+          2. Download it from the **Assets** section at the bottom of this page.
+          3. Verify the download with \`SHA256SUMS.release.txt\` before extracting it.
+
+          | Platform | Target | Recommended asset |
+          | --- | --- | --- |
+          | Linux x86_64 | \`x86_64-unknown-linux-musl\` | \`codex-package-x86_64-unknown-linux-musl.tar.gz\` |
+          | Linux ARM64 | \`aarch64-unknown-linux-musl\` | \`codex-package-aarch64-unknown-linux-musl.tar.gz\` |
+          | macOS Intel | \`x86_64-apple-darwin\` | \`codex-package-x86_64-apple-darwin.tar.gz\` |
+          | macOS Apple Silicon | \`aarch64-apple-darwin\` | \`codex-package-aarch64-apple-darwin.tar.gz\` |
+          | Windows x86_64 | \`x86_64-pc-windows-msvc\` | \`codex-package-x86_64-pc-windows-msvc.zip\` |
+          | Windows ARM64 | \`aarch64-pc-windows-msvc\` | \`codex-package-aarch64-pc-windows-msvc.zip\` |
+
+          The other assets are component binaries, compressed alternatives, symbols, Python wheels, or verification metadata.
+
+          ## What changed
+
+          This build is based on upstream Codex \`${{ needs.prepare.outputs.upstream_tag }}\` at commit \`${{ needs.prepare.outputs.upstream_sha }}\`.
+
+          **Patches applied**
+
+          ${patch_list}
+
+          ## Build details
+
+          - Build date: \`${{ needs.prepare.outputs.build_date }}\`
+          - Supported targets: \`${{ needs.prepare.outputs.supported_targets }}\`
+          - Package archive checksums: \`codex-package_SHA256SUMS\`
+          - Complete release checksums: \`SHA256SUMS.release.txt\`
+          - Machine-readable manifest: \`release-manifest.json\`
+          - Build provenance: \`release-provenance.intoto.jsonl\`
+
+          This release is intended as a temporary patch layer; patches are removed once the corresponding fix is available upstream.
           EOF
 
       - name: Publish GitHub Release
