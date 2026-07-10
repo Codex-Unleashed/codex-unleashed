@@ -165,13 +165,31 @@ jobs:
 
           if [[ -n "${INPUT_UPSTREAM_TAG:-}" ]]; then
             upstream_tag="${INPUT_UPSTREAM_TAG}"
+            upstream_prerelease="$(gh api "repos/openai/codex/releases/tags/${upstream_tag}" --jq '(.prerelease or .draft)')"
           else
-            upstream_tag="$(./scripts/check-upstream-release.sh openai/codex | jq -r '.tag_name')"
+            upstream_release_json="$(./scripts/check-upstream-release.sh openai/codex)"
+            upstream_tag="$(jq -r '.tag_name' <<<"${upstream_release_json}")"
+            upstream_prerelease="$(jq -r '(.prerelease or .draft)' <<<"${upstream_release_json}")"
           fi
 
           if [[ -z "${upstream_tag}" || "${upstream_tag}" == "null" ]]; then
             echo "ERROR: failed to determine upstream tag" >&2
             exit 1
+          fi
+
+          if [[ "${upstream_prerelease}" == "true" ]]; then
+            echo "Upstream release ${upstream_tag} is a prerelease or draft; skipping."
+            echo "should_release=false" >> "${GITHUB_OUTPUT}"
+            echo "upstream_tag=${upstream_tag}" >> "${GITHUB_OUTPUT}"
+            echo "upstream_sha=" >> "${GITHUB_OUTPUT}"
+            echo "patched_tag=" >> "${GITHUB_OUTPUT}"
+            echo "release_name=" >> "${GITHUB_OUTPUT}"
+            echo "build_date=${build_date}" >> "${GITHUB_OUTPUT}"
+            echo "patch_files=" >> "${GITHUB_OUTPUT}"
+            echo "supported_targets=" >> "${GITHUB_OUTPUT}"
+            echo "patch_hash=" >> "${GITHUB_OUTPUT}"
+            echo "artifact_run_id=" >> "${GITHUB_OUTPUT}"
+            exit 0
           fi
 
           patched_tag="${upstream_tag}.${patch_release}"
