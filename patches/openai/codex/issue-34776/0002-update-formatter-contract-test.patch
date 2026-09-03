@@ -1,17 +1,17 @@
-From 431f0b8c8ee9917f54f9c3d743d440507192313a Mon Sep 17 00:00:00 2001
+From af0ee8d7c51fea4e5b66e7b83cf742d3a12ada54 Mon Sep 17 00:00:00 2001
 From: Codex Fixes <codex-fixes@users.noreply.github.com>
 Date: Thu, 3 Sep 2026 15:07:21 -0400
 Subject: [PATCH] Keep formatter contract test aligned with cargo fmt
 
 ---
- .../test_artifact_workflow_and_binaries.py    | 19 +++----------------
- 1 file changed, 3 insertions(+), 16 deletions(-)
+ .../test_artifact_workflow_and_binaries.py    | 21 +++----------------
+ 1 file changed, 3 insertions(+), 18 deletions(-)
 
 diff --git a/sdk/python/tests/test_artifact_workflow_and_binaries.py b/sdk/python/tests/test_artifact_workflow_and_binaries.py
-index 936e85d..980b0cd 100644
+index 936e85d..4c8d621 100644
 --- a/sdk/python/tests/test_artifact_workflow_and_binaries.py
 +++ b/sdk/python/tests/test_artifact_workflow_and_binaries.py
-@@ -231,25 +231,12 @@ def test_root_format_driver_covers_all_formatter_groups(
+@@ -231,25 +231,10 @@ def test_root_format_driver_covers_all_formatter_groups(
      )
      assert formatters[0].commands[-1].args == ("just", "--unstable", "--fmt")
      assert checks[0].commands[-1].args == ("just", "--unstable", "--fmt", "--check")
@@ -29,11 +29,11 @@ index 936e85d..980b0cd 100644
 -        "new file.rs",
 -        os.path.join("src", "lib.rs"),
 -    )
-+    rust_format_args = ("cargo", "fmt", "--", "--config", "imports_granularity=Item")
-     assert formatters[1].commands == (
+-    assert formatters[1].commands == (
 -        script.Command(rustfmt_args + rust_files, tmp_path / "codex-rs"),
-+        script.Command(rust_format_args, tmp_path / "codex-rs"),
-     )
+-    )
++    rust_format_args = ("cargo", "fmt", "--", "--config", "imports_granularity=Item")
++    assert formatters[1].commands == (script.Command(rust_format_args, tmp_path / "codex-rs"),)
      assert checks[1].commands == (
 -        script.Command(rustfmt_args + ("--check",) + rust_files, tmp_path / "codex-rs"),
 +        script.Command(rust_format_args + ("--check",), tmp_path / "codex-rs"),
