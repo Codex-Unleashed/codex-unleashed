@@ -8,6 +8,8 @@ A public patch queue and patched binary distribution for OpenAI Codex.
 [![Upstream bugs](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/cowwoc/codex-fixes/main/docs/badges/upstream-bugs.json)](https://github.com/cowwoc/codex-fixes/tree/main/patches/openai/codex)
 [![Public fixes](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/cowwoc/codex-fixes/main/docs/badges/public-fixes.json)](https://github.com/cowwoc/codex-fixes/tree/main/patches)
 
+**[Get unstuck sooner →](https://cowwoc.github.io/codex-fixes/)**
+
 ## Quickstart
 
 ### Download a public patched release
@@ -21,7 +23,7 @@ After extracting the archive, run the included `codex` binary the same way you w
 ## Get A Fix Faster
 
 - Public release: use the latest [GitHub Release](https://github.com/cowwoc/codex-fixes/releases/latest).
-- Early access: buyers can receive completed fixes up to 30 days before public release.
+- Priority access: subscribers receive priority consideration for requested fixes and early access to completed patched builds.
 - New fix request: open an issue and describe the bug, scope, and business impact.
 - Quote request: contact the maintainer directly for private or larger commercial work.
 
@@ -30,7 +32,7 @@ After extracting the archive, run the included `codex` binary the same way you w
 - Important user-facing issues can take months to be fixed upstream, even when they are time-sensitive for real users and teams.
 - This project bridges that gap by shipping small, targeted fixes for issues that matter to users now, not months later.
 - Patches stay public, auditable, and temporary: they are carried here until the equivalent fix lands upstream, then removed.
-- Buyers can get early access to completed patched builds before those fixes roll into the public release.
+- Subscribers get priority consideration for requested fixes and early access to completed patched builds before those fixes roll into the public release.
 
 ## What To Expect
 
@@ -40,10 +42,11 @@ After extracting the archive, run the included `codex` binary the same way you w
 
 ## Early Access Policy
 
-Users who pay for early access receive downloadable builds containing completed fixes up to 30 days before public release.
+Subscribers pay US$12 per named developer per month, month-to-month, for priority consideration of requested fixes and early access to completed patched builds.
 
-- You only pay once a completed downloadable build is ready.
-- Any fix sold through early access is added to the public release no later than 30 days after first customer delivery.
+- A request does not guarantee that a fix will be implemented, or establish a delivery date.
+- You only pay for months when early-release fixes are available. No fixes? Your subscription will be credited.
+- Early-release fixes become eligible for public release at least 30 days after first customer delivery. Fixes that require substantial investment may remain in early access longer.
 - Full terms: [Commercial Terms](docs/COMMERCIAL_TERMS.md)
 
 Paddle: `TODO_PADDLE_URL`

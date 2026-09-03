@@ -21,11 +21,13 @@ Use Paddle for early-access delivery after maintainer review:
 
 - Paddle: `TODO_PADDLE_URL`
 
-No payment is collected when an issue is filed. The maintainer first reviews the issue, confirms scope and definition of done, and then decides whether to implement the fix here.
+Early access costs US$12 per named developer per month, month-to-month. Subscribers receive priority consideration for requested fixes, but no fix, delivery date, or outcome is guaranteed.
 
-Interested buyers may comment `I am interested in purchasing early access at the specified price` to signal non-binding interest.
+No payment is collected when an issue is filed. The maintainer first reviews the issue, confirms scope and definition of done, and then decides whether to implement the fix here. You only pay for months when early-release fixes are available. No fixes? Your subscription will be credited.
 
-If the maintainer completes an early-access build containing the fix, Paddle is used to sell immediate access to that completed build. Early-access builds may also contain other unreleased fixes. Each purchased fix is added to the public release no later than 30 days after first customer delivery of that fix.
+Interested buyers may comment `I am interested in purchasing priority access at the specified price` to signal non-binding interest.
+
+If the maintainer completes an early-access build containing the fix, Paddle is used to sell immediate access to that completed build. Early-access builds may also contain other unreleased fixes. Early-release fixes become eligible for public release at least 30 days after first customer delivery. Fixes that require substantial investment may remain in early access longer.
 
 ## Private Work
 
