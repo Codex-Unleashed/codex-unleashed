@@ -55,7 +55,9 @@ jobs:
 
   sdks:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # A cold Bazel build on GitHub-hosted runners can exceed the upstream
+    # workflow's cached-runner timeout.
+    timeout-minutes: 45
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
