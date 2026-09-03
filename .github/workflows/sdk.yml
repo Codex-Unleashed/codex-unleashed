@@ -83,13 +83,6 @@ jobs:
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Cache Cargo artifacts
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: |
-            upstream/codex-rs -> target
-          key: sdk-${{ inputs.upstream_ref || 'main' }}
-
       - name: Install Linux build dependencies
         shell: bash
         run: |
@@ -97,46 +90,58 @@ jobs:
           sudo apt-get update -y
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends pkg-config libcap-dev
 
-      - name: Install workspace dependencies
-        shell: bash
-        run: |
-          set -euo pipefail
-          cd upstream
-          pnpm install --frozen-lockfile
-
-      - name: Configure Codex-built rusty_v8 artifacts
-        shell: bash
-        run: |
-          set -euo pipefail
-          version="$(python3 upstream/.github/scripts/rusty_v8_bazel.py resolved-v8-crate-version)"
-          release_tag="rusty-v8-v${version}"
-          base_url="https://github.com/openai/codex/releases/download/${release_tag}"
-          binding_dir="${RUNNER_TEMP}/rusty_v8"
-          profile="ptrcomp_sandbox_release"
-          target="x86_64-unknown-linux-gnu"
-          archive_name="librusty_v8_${profile}_${target}.a.gz"
-          binding_name="src_binding_${profile}_${target}.rs"
-          checksums_name="rusty_v8_${profile}_${target}.sha256"
-
-          mkdir -p "${binding_dir}"
-          curl -fsSL "${base_url}/${archive_name}" -o "${binding_dir}/${archive_name}"
-          curl -fsSL "${base_url}/${binding_name}" -o "${binding_dir}/${binding_name}"
-          curl -fsSL "${base_url}/${checksums_name}" -o "${binding_dir}/${checksums_name}"
-          (cd "${binding_dir}" && tr -d '\r' < "${checksums_name}" | sha256sum -c -)
-
-          echo "RUSTY_V8_ARCHIVE=${binding_dir}/${archive_name}" >> "${GITHUB_ENV}"
-          echo "RUSTY_V8_SRC_BINDING_PATH=${binding_dir}/${binding_name}" >> "${GITHUB_ENV}"
+      - name: Set up Bazel CI
+        uses: ./upstream/.github/actions/setup-bazel-ci
+        with:
+          target: x86_64-unknown-linux-gnu
 
       - name: Build patched codex binary for SDK tests
         shell: bash
         run: |
           set -euo pipefail
-          cargo build --manifest-path upstream/codex-rs/Cargo.toml --bin codex --bin codex-code-mode-host
+          cd upstream
+          ./.github/scripts/run-bazel-ci.sh \
+            --remote-download-toplevel \
+            -- \
+            build \
+            --build_metadata=COMMIT_SHA="${GITHUB_SHA}" \
+            --build_metadata=TAG_job=sdk \
+            -- \
+            //codex-rs/cli:codex
+          cquery_output="$(
+            ./.github/scripts/run-bazel-ci.sh \
+              -- \
+              cquery \
+              --output=files \
+              -- \
+              //codex-rs/cli:codex \
+              | grep -E '^(/|bazel-out/)' \
+              | tail -n 1
+          )"
+          if [[ "${cquery_output}" = /* ]]; then
+            codex_bazel_output_path="${cquery_output}"
+          else
+            codex_bazel_output_path="${GITHUB_WORKSPACE}/upstream/${cquery_output}"
+          fi
+          [[ -e "${codex_bazel_output_path}" ]] || {
+            echo "Unable to locate Bazel-built codex at ${codex_bazel_output_path}." >&2
+            exit 1
+          }
+          install_dir="${GITHUB_WORKSPACE}/.tmp/sdk-ci"
+          mkdir -p "${install_dir}"
+          install -m 755 "${codex_bazel_output_path}" "${install_dir}/codex"
+          echo "CODEX_EXEC_PATH=${install_dir}/codex" >> "${GITHUB_ENV}"
+
+      - name: Warm up Bazel-built codex
+        run: "${CODEX_EXEC_PATH} --version"
+
+      - name: Install workspace dependencies
+        run: pnpm --dir upstream install --frozen-lockfile
 
       - name: Build TypeScript SDK packages
         shell: bash
         env:
-          CODEX_EXEC_PATH: ${{ github.workspace }}/upstream/codex-rs/target/debug/codex
+          CODEX_EXEC_PATH: ${{ github.workspace }}/.tmp/sdk-ci/codex
         run: |
           set -euo pipefail
           pnpm --dir upstream/sdk/typescript run build
@@ -150,7 +155,7 @@ jobs:
       - name: Test TypeScript SDK packages
         shell: bash
         env:
-          CODEX_EXEC_PATH: ${{ github.workspace }}/upstream/codex-rs/target/debug/codex
+          CODEX_EXEC_PATH: ${{ github.workspace }}/.tmp/sdk-ci/codex
         run: |
           set -euo pipefail
           pnpm --dir upstream/sdk/typescript run test
