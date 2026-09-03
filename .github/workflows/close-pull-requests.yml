@@ -19,6 +19,11 @@ jobs:
           script: |
             const pr = context.payload.pull_request;
 
+            if (pr.user?.login === "cowwoc") {
+              core.info("Pull request is from the maintainer; leaving it open.");
+              return;
+            }
+
             if (pr.state === "closed") {
               core.info("Pull request is already closed.");
               return;
