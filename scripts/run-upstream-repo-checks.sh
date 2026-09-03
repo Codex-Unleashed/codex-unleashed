@@ -27,6 +27,7 @@ if [[ ! -d "${target_dir}/.git" ]]; then
 fi
 
 pushd "${target_dir}" >/dev/null
+export CODEX_REPO_ROOT="${target_dir}"
 python3 .github/scripts/verify_cargo_workspace_manifests.py
 python3 .github/scripts/verify_tui_core_boundary.py
 python3 .github/scripts/verify_bazel_clippy_lints.py
