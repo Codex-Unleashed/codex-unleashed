@@ -108,7 +108,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cargo build --manifest-path upstream/codex-rs/Cargo.toml --bin codex
+          cargo build --manifest-path upstream/codex-rs/Cargo.toml --bin codex --bin codex-code-mode-host
 
       - name: Build TypeScript SDK packages
         shell: bash
