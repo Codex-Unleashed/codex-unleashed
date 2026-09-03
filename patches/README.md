@@ -18,6 +18,7 @@ Operational rules:
 - each issue directory must contain a human-readable `README.md`
 - patches should be generated with `git format-patch`
 - each patch should correspond to one logical bug fix
+- fixes follow test-driven development: include a regression test that fails before the fix and passes after it
 - use `<short-slug>.patch` for a single patch
 - for dependent patch series, numeric prefixes such as `0001-` and `0002-` are optional but recommended to make their order explicit
 - no multi-issue rollups
@@ -42,4 +43,5 @@ Issue directory `README.md` should include:
 - canonical issue reference, for example `openai/codex#1234`
 - patch intent and scope
 - reproduction summary
+- regression-test description and before/after results
 - upstream status or related links
