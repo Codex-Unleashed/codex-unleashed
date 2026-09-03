@@ -57,7 +57,7 @@ jobs:
     runs-on: ubuntu-latest
     # A cold Bazel build on GitHub-hosted runners can exceed the upstream
     # workflow's cached-runner timeout.
-    timeout-minutes: 45
+    timeout-minutes: 90
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -109,7 +109,8 @@ jobs:
             --build_metadata=COMMIT_SHA="${GITHUB_SHA}" \
             --build_metadata=TAG_job=sdk \
             -- \
-            //codex-rs/cli:codex
+            //codex-rs/cli:codex \
+            //codex-rs/code-mode-host:codex-code-mode-host
           cquery_output="$(
             ./.github/scripts/run-bazel-ci.sh \
               -- \
@@ -129,9 +130,25 @@ jobs:
             echo "Unable to locate Bazel-built codex at ${codex_bazel_output_path}." >&2
             exit 1
           }
+          code_mode_host_output_path="$(${GITHUB_WORKSPACE}/upstream/.github/scripts/run-bazel-ci.sh \
+            -- \
+            cquery \
+            --output=files \
+            -- \
+            //codex-rs/code-mode-host:codex-code-mode-host \
+            | grep -E '^(/|bazel-out/)' \
+            | tail -n 1)"
+          if [[ "${code_mode_host_output_path}" != /* ]]; then
+            code_mode_host_output_path="${GITHUB_WORKSPACE}/upstream/${code_mode_host_output_path}"
+          fi
+          [[ -e "${code_mode_host_output_path}" ]] || {
+            echo "Unable to locate the Bazel-built codex code-mode host at ${code_mode_host_output_path}." >&2
+            exit 1
+          }
           install_dir="${GITHUB_WORKSPACE}/.tmp/sdk-ci"
           mkdir -p "${install_dir}"
           install -m 755 "${codex_bazel_output_path}" "${install_dir}/codex"
+          install -m 755 "${code_mode_host_output_path}" "${install_dir}/codex-code-mode-host"
           echo "CODEX_EXEC_PATH=${install_dir}/codex" >> "${GITHUB_ENV}"
 
       - name: Warm up Bazel-built codex
