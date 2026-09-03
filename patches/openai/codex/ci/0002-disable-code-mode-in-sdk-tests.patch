@@ -1,0 +1,15 @@
+diff --git a/sdk/typescript/tests/testCodex.ts b/sdk/typescript/tests/testCodex.ts
+index 5d7b1bc..d89199c 100644
+--- a/sdk/typescript/tests/testCodex.ts
++++ b/sdk/typescript/tests/testCodex.ts
+@@ -83,8 +83,8 @@ function mergeTestConfig(
+     // sync does not race temp CODEX_HOME cleanup.
+     features:
+       featureOverrides && typeof featureOverrides === "object" && !Array.isArray(featureOverrides)
+-        ? { ...featureOverrides, plugins: false }
+-        : { plugins: false },
++        ? { ...featureOverrides, plugins: false, code_mode: false, code_mode_host: false }
++        : { plugins: false, code_mode: false, code_mode_host: false },
+   };
+ }
+ 
