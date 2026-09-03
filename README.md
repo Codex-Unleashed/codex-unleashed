@@ -46,7 +46,7 @@ Users who pay for early access receive downloadable builds containing completed 
 - Any fix sold through early access is added to the public release no later than 30 days after first customer delivery.
 - Full terms: [Commercial Terms](docs/COMMERCIAL_TERMS.md)
 
-Polar: `TODO_POLAR_URL`
+Paddle: `TODO_PADDLE_URL`
 
 ## How Releases Work
 
@@ -85,4 +85,4 @@ This project uses the same license as upstream Codex. See [LICENSE](LICENSE).
 
 - GitHub: [@cowwoc](https://github.com/cowwoc)
 - Email: `cowwoc2020@gmail.com`
-- Polar: `TODO_POLAR_URL`
+- Paddle: `TODO_PADDLE_URL`

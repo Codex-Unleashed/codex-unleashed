@@ -12,7 +12,7 @@
 8. Generate one or more patch files with `git format-patch` and store them in that directory.
 9. Prefer `0001-<short-slug>.patch` naming over `change.patch`.
 10. Update any issue labels such as `funded`, `quote-request`, `professional-services`, or `maintainer-approved` as needed.
-11. Once an early-access build containing the fix is ready, create the Polar checkout link or invoice and deliver immediate access to the buyer after payment.
+11. Once an early-access build containing the fix is ready, create the Paddle checkout link or invoice and deliver immediate access to the buyer after payment.
 12. Early-access builds may contain multiple unreleased fixes; do not promise buyers exclusive access to only one isolated patch unless you are prepared to ship separate builds.
 13. Add each purchased fix to the public release flow for this repository no later than 30 days after first customer delivery of that fix.
 

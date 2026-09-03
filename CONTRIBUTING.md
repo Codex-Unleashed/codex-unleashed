@@ -23,4 +23,4 @@ This repository does not accept pull requests.
 
 - GitHub: `@cowwoc`
 - Email: `cowwoc2020@gmail.com`
-- Polar: `TODO_POLAR_URL`
+- Paddle: `TODO_PADDLE_URL`
