@@ -29,12 +29,6 @@ if [[ ! -d "${target_dir}/.git" ]]; then
   exit 1
 fi
 
-cleanup_on_error() {
-  git -C "${target_dir}" am --abort >/dev/null 2>&1 || true
-}
-
-trap cleanup_on_error ERR
-
 patches=()
 while IFS= read -r patch_file; do
   patches+=("${patch_file}")
@@ -47,7 +41,7 @@ fi
 
 for patch_file in "${patches[@]}"; do
   echo "Applying ${patch_file#${repo_root}/}"
-  git -C "${target_dir}" am --3way --keep-cr "${patch_file}"
+  # Upstream checkouts are shallow and CI does not configure a Git identity.
+  # Apply the format-patch text without creating a commit in the checkout.
+  git -C "${target_dir}" apply "${patch_file}"
 done
-
-trap - ERR
