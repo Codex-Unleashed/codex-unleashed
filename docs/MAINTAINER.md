@@ -10,7 +10,7 @@
 6. Create `patches/<owner>/<repo>/issue-<number>/`.
 7. Add a `README.md` describing the issue reference, scope of the fix, and any upstream links.
 8. Generate one or more patch files with `git format-patch` and store them in that directory.
-9. Prefer `0001-<short-slug>.patch` naming over `change.patch`.
+9. Name a single patch `<short-slug>.patch`; for dependent patch series, use numeric prefixes such as `0001-` and `0002-` when explicit ordering is helpful.
 10. Update any issue labels such as `funded`, `quote-request`, `professional-services`, or `maintainer-approved` as needed.
 11. Once an early-access build containing the fix is ready, create the Paddle checkout link or invoice and deliver immediate access to the buyer after payment.
 12. Early-access builds may contain multiple unreleased fixes; do not promise buyers exclusive access to only one isolated patch unless you are prepared to ship separate builds.
