@@ -1,0 +1,45 @@
+From 51bb7ab55e2c9a27b61d471c6ee48c3eb42f585f Mon Sep 17 00:00:00 2001
+From: Codex Fixes <codex-fixes@users.noreply.github.com>
+Date: Thu, 3 Sep 2026 15:07:21 -0400
+Subject: [PATCH] Keep formatter contract test aligned with cargo fmt
+
+---
+ .../test_artifact_workflow_and_binaries.py    | 19 +++----------------
+ 1 file changed, 3 insertions(+), 16 deletions(-)
+
+diff --git a/sdk/python/tests/test_artifact_workflow_and_binaries.py b/sdk/python/tests/test_artifact_workflow_and_binaries.py
+index 936e85d..980b0cd 100644
+--- a/sdk/python/tests/test_artifact_workflow_and_binaries.py
++++ b/sdk/python/tests/test_artifact_workflow_and_binaries.py
+@@ -231,25 +231,12 @@ def test_root_format_driver_covers_all_formatter_groups(
+     )
+     assert formatters[0].commands[-1].args == ("just", "--unstable", "--fmt")
+     assert checks[0].commands[-1].args == ("just", "--unstable", "--fmt", "--check")
+-    rustfmt_args = (
+-        "rustfmt",
+-        "--edition",
+-        "2024",
+-        "--config-path",
+-        str(tmp_path / "codex-rs/rustfmt.toml"),
+-        "--config",
+-        "imports_granularity=Item,skip_children=true",
+-    )
+-    rust_files = (
+-        os.path.join("..", "bazel", "rules", "example.rs"),
+-        "new file.rs",
+-        os.path.join("src", "lib.rs"),
+-    )
++    rust_format_args = ("cargo", "fmt", "--", "--config", "imports_granularity=Item")
+     assert formatters[1].commands == (
+-        script.Command(rustfmt_args + rust_files, tmp_path / "codex-rs"),
++        script.Command(rust_format_args, tmp_path / "codex-rs"),
+     )
+     assert checks[1].commands == (
+-        script.Command(rustfmt_args + ("--check",) + rust_files, tmp_path / "codex-rs"),
++        script.Command(rust_format_args + ("--check",), tmp_path / "codex-rs"),
+     )
+     format_buildifier_args = formatters[2].commands[-1].args
+     check_buildifier_args = checks[2].commands[-1].args
+-- 
+2.43.0
+
