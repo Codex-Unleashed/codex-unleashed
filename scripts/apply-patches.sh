@@ -47,7 +47,9 @@ fi
 
 for patch_file in "${patches[@]}"; do
   echo "Applying ${patch_file#${repo_root}/}"
-  git -C "${target_dir}" am --3way --keep-cr "${patch_file}"
+  # Upstream checkouts are shallow, so the format-patch parent is normally not
+  # present for a three-way merge. Apply the patch text against the pinned ref.
+  git -C "${target_dir}" am --keep-cr "${patch_file}"
 done
 
 trap - ERR
