@@ -104,6 +104,29 @@ jobs:
           cd upstream
           pnpm install --frozen-lockfile
 
+      - name: Configure Codex-built rusty_v8 artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(python3 upstream/.github/scripts/rusty_v8_bazel.py resolved-v8-crate-version)"
+          release_tag="rusty-v8-v${version}"
+          base_url="https://github.com/openai/codex/releases/download/${release_tag}"
+          binding_dir="${RUNNER_TEMP}/rusty_v8"
+          profile="ptrcomp_sandbox_release"
+          target="x86_64-unknown-linux-gnu"
+          archive_name="librusty_v8_${profile}_${target}.a.gz"
+          binding_name="src_binding_${profile}_${target}.rs"
+          checksums_name="rusty_v8_${profile}_${target}.sha256"
+
+          mkdir -p "${binding_dir}"
+          curl -fsSL "${base_url}/${archive_name}" -o "${binding_dir}/${archive_name}"
+          curl -fsSL "${base_url}/${binding_name}" -o "${binding_dir}/${binding_name}"
+          curl -fsSL "${base_url}/${checksums_name}" -o "${binding_dir}/${checksums_name}"
+          (cd "${binding_dir}" && tr -d '\r' < "${checksums_name}" | sha256sum -c -)
+
+          echo "RUSTY_V8_ARCHIVE=${binding_dir}/${archive_name}" >> "${GITHUB_ENV}"
+          echo "RUSTY_V8_SRC_BINDING_PATH=${binding_dir}/${binding_name}" >> "${GITHUB_ENV}"
+
       - name: Build patched codex binary for SDK tests
         shell: bash
         run: |

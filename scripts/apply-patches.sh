@@ -41,7 +41,6 @@ fi
 
 for patch_file in "${patches[@]}"; do
   echo "Applying ${patch_file#${repo_root}/}"
-  # Upstream checkouts are shallow and CI does not configure a Git identity.
-  # Apply the format-patch text without creating a commit in the checkout.
+  # CI checkouts are shallow and do not need to create commits from patch files.
   git -C "${target_dir}" apply "${patch_file}"
 done
