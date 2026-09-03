@@ -1,4 +1,4 @@
-From 8eb5c0307534a9c6fdd21df709dda804d1b573fa Mon Sep 17 00:00:00 2001
+From 431f0b8c8ee9917f54f9c3d743d440507192313a Mon Sep 17 00:00:00 2001
 From: Codex Fixes <codex-fixes@users.noreply.github.com>
 Date: Thu, 3 Sep 2026 15:07:21 -0400
 Subject: [PATCH] Keep formatter contract test aligned with cargo fmt
