@@ -1,8 +1,29 @@
 diff --git a/sdk/typescript/tests/testCodex.ts b/sdk/typescript/tests/testCodex.ts
-index 5d7b1bc..d600c45 100644
+index 5d7b1bc..b63a1a6 100644
 --- a/sdk/typescript/tests/testCodex.ts
 +++ b/sdk/typescript/tests/testCodex.ts
-@@ -83,8 +83,8 @@ function mergeTestConfig(
+@@ -38,8 +38,9 @@ export function createMockClient(url: string): TestClient {
+ }
+ 
+ export function createTestClient(options: CreateTestClientOptions = {}): TestClient {
+-  const env =
+-    options.inheritEnv === false ? { ...options.env } : { ...getCurrentEnv(), ...options.env };
++    const env =
++      options.inheritEnv === false ? { ...options.env } : { ...getCurrentEnv(), ...options.env };
++  const configOverrides = [...(options.configOverrides ?? []), "features.code_mode=false"];
+ 
+   return {
+     cleanup: () => {},
+@@ -48,7 +49,7 @@ export function createTestClient(options: CreateTestClientOptions = {}): TestCli
+       baseUrl: options.baseUrl,
+       apiKey: options.apiKey,
+       config: mergeTestConfig(options.baseUrl, options.config),
+-      configOverrides: options.configOverrides,
++      configOverrides,
+       env,
+     }),
+   };
+@@ -83,8 +84,8 @@ function mergeTestConfig(
      // sync does not race temp CODEX_HOME cleanup.
      features:
        featureOverrides && typeof featureOverrides === "object" && !Array.isArray(featureOverrides)
