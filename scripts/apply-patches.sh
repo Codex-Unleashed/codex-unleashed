@@ -29,12 +29,6 @@ if [[ ! -d "${target_dir}/.git" ]]; then
   exit 1
 fi
 
-cleanup_on_error() {
-  git -C "${target_dir}" am --abort >/dev/null 2>&1 || true
-}
-
-trap cleanup_on_error ERR
-
 patches=()
 while IFS= read -r patch_file; do
   patches+=("${patch_file}")
@@ -47,9 +41,7 @@ fi
 
 for patch_file in "${patches[@]}"; do
   echo "Applying ${patch_file#${repo_root}/}"
-  # Upstream checkouts are shallow, so the format-patch parent is normally not
-  # present for a three-way merge. Apply the patch text against the pinned ref.
-  git -C "${target_dir}" am --keep-cr "${patch_file}"
+  # Upstream checkouts are shallow and CI does not configure a Git identity.
+  # Apply the format-patch text without creating a commit in the checkout.
+  git -C "${target_dir}" apply --keep-cr "${patch_file}"
 done
-
-trap - ERR
