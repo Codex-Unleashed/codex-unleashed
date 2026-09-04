@@ -1231,7 +1231,7 @@ jobs:
             find . -maxdepth 1 -type f \
               \( -name 'codex-package-*.tar.gz' -o \
                  -name 'codex-app-server-package-*.tar.gz' \) \
-              -print | LC_ALL=C sort | xargs -r sha256sum > codex-package_SHA256SUMS
+              -printf '%f\0' | LC_ALL=C sort -z | xargs -0 -r sha256sum > codex-package_SHA256SUMS
           )
 
       - name: Build release notes
