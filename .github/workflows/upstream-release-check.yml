@@ -448,8 +448,9 @@ jobs:
       - uses: ./.github/actions/setup-ci
         with:
           # Linux hosted runners can use the path from upstream's build
-          # environment. macOS uses its writable hosted-runner path instead.
-          cargo-target-dir: ${{ runner.os == 'macOS' && '/Users/runner/work/codex/codex/codex-rs/target' || '/home/runner/work/codex/codex/codex-rs/target' }}
+          # environment. macOS keeps its valid CI-local path and relies on
+          # RUSTFLAGS below to reproduce upstream's embedded target path.
+          cargo-target-dir: ${{ runner.os == 'Linux' && '/home/runner/work/codex/codex/codex-rs/target' || '' }}
 
       - name: Configure reproducible Rust paths
         shell: bash
