@@ -159,7 +159,7 @@ jobs:
             echo "Unable to locate the Bazel-built codex code-mode host at ${code_mode_host_output_path}." >&2
             exit 1
           }
-          install_dir="${GITHUB_WORKSPACE}/.tmp/sdk-ci"
+          install_dir="${RUNNER_TEMP}/codex-sdk-ci"
           mkdir -p "${install_dir}"
           install -m 755 "${codex_bazel_output_path}" "${install_dir}/codex"
           install -m 755 "${code_mode_host_output_path}" "${install_dir}/codex-code-mode-host"
@@ -174,7 +174,7 @@ jobs:
       - name: Build TypeScript SDK packages
         shell: bash
         env:
-          CODEX_EXEC_PATH: ${{ github.workspace }}/.tmp/sdk-ci/codex
+          CODEX_EXEC_PATH: ${{ runner.temp }}/codex-sdk-ci/codex
         run: |
           set -euo pipefail
           pnpm --dir upstream/sdk/typescript run build
@@ -188,7 +188,7 @@ jobs:
       - name: Test TypeScript SDK packages
         shell: bash
         env:
-          CODEX_EXEC_PATH: ${{ github.workspace }}/.tmp/sdk-ci/codex
+          CODEX_EXEC_PATH: ${{ runner.temp }}/codex-sdk-ci/codex
         run: |
           set -euo pipefail
           pnpm --dir upstream/sdk/typescript run test
