@@ -906,6 +906,11 @@ jobs:
           rustup target add "${{ matrix.target }}" --toolchain "${{ steps.rust_toolchain.outputs.channel }}"
           rustup target list --installed
 
+      - name: Configure rusty_v8 artifact overrides and verify checksums
+        uses: ./.github/actions/setup-rusty-v8
+        with:
+          target: ${{ matrix.target }}
+
       - name: Cache Cargo artifacts
         uses: Swatinem/rust-cache@v2
         with:
