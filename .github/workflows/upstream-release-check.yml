@@ -311,7 +311,7 @@ jobs:
           version: "0.11.3"
 
       - name: Set up Zig
-        uses: mlugg/setup-zig@v1
+        uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29 # v2.2.1
         with:
           version: 0.14.0
 
@@ -332,7 +332,7 @@ jobs:
           echo "channel=${channel}" >> "$GITHUB_OUTPUT"
 
       - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@e081816240890017053eacbb1bdf337761dc5582 # 1.95.0
         with:
           toolchain: ${{ steps.rust_toolchain.outputs.channel }}
 
@@ -459,6 +459,12 @@ jobs:
 
       - uses: ./.github/actions/setup-ci
 
+      - name: Configure reproducible Rust paths
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "RUSTFLAGS=--remap-path-prefix=${GITHUB_WORKSPACE}=/home/runner/work/codex/codex --remap-path-prefix=${CARGO_TARGET_DIR}=/home/runner/work/codex/codex/codex-rs/target" >> "$GITHUB_ENV"
+
       - name: Setup pnpm
         uses: pnpm/action-setup@a8198c4bff370c8506180b035930dea56dbd5288 # v5
         with:
@@ -508,7 +514,7 @@ jobs:
 
       - name: Set up Zig
         if: ${{ contains(matrix.target, 'linux-musl') }}
-        uses: mlugg/setup-zig@v1
+        uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29 # v2.2.1
         with:
           version: 0.14.0
           use-cache: false
@@ -554,7 +560,7 @@ jobs:
           echo "channel=${channel}" >> "$GITHUB_OUTPUT"
 
       - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@e081816240890017053eacbb1bdf337761dc5582 # 1.95.0
         with:
           toolchain: ${{ steps.rust_toolchain.outputs.channel }}
           targets: ${{ matrix.target }}
@@ -573,7 +579,7 @@ jobs:
         with:
           workspaces: |
             upstream/codex-rs -> target
-          key: build-${{ matrix.target }}-${{ matrix.bundle }}-${{ needs.prepare.outputs.upstream_sha }}-${{ needs.prepare.outputs.patch_hash }}
+          key: build-reproducible-paths-v1-${{ matrix.target }}-${{ matrix.bundle }}-${{ needs.prepare.outputs.upstream_sha }}-${{ needs.prepare.outputs.patch_hash }}
           save-if: true
 
       - name: Cache rusty_v8 artifacts
@@ -889,7 +895,7 @@ jobs:
           echo "channel=${channel}" >> "$GITHUB_OUTPUT"
 
       - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@e081816240890017053eacbb1bdf337761dc5582 # 1.95.0
         with:
           toolchain: ${{ steps.rust_toolchain.outputs.channel }}
           targets: ${{ matrix.target }}
@@ -916,7 +922,7 @@ jobs:
         with:
           workspaces: |
             upstream/codex-rs -> target
-          key: build-windows-${{ matrix.target }}-${{ matrix.bundle }}-${{ needs.prepare.outputs.upstream_sha }}-${{ needs.prepare.outputs.patch_hash }}
+          key: build-windows-reproducible-paths-v1-${{ matrix.target }}-${{ matrix.bundle }}-${{ needs.prepare.outputs.upstream_sha }}-${{ needs.prepare.outputs.patch_hash }}
           save-if: true
 
       - name: Cargo build (Windows binaries)
