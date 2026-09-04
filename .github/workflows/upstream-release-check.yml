@@ -796,6 +796,13 @@ jobs:
             echo "- Cargo cache: managed by Swatinem/rust-cache"
           } >> "$GITHUB_STEP_SUMMARY"
 
+      # apt recreates archives/partial as root during installation. Make the
+      # cache tree readable by actions/cache before it is archived.
+      - name: Make APT cache readable
+        if: ${{ always() && !cancelled() && runner.os == 'Linux' }}
+        shell: bash
+        run: sudo chown -R "$USER:$USER" /var/cache/apt
+
       - name: Save APT cache
         if: ${{ always() && !cancelled() && runner.os == 'Linux' }}
         continue-on-error: true
