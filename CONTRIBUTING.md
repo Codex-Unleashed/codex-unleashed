@@ -17,6 +17,7 @@ This repository does not accept pull requests.
 - Every issue directory must correspond to one repository-relative reviewed issue.
 - Every patch must contain exactly one logical bug fix.
 - Fixes follow test-driven development: include a regression test that fails before the fix and passes after it.
+- Tests must follow the surrounding upstream test style, including naming, structure, helper usage, formatting, and assertion patterns.
 - Patches should be generated with `git format-patch`.
 - Patches should remain small, auditable, and removable after upstream fixes the issue.
 
