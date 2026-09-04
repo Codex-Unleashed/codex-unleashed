@@ -140,7 +140,10 @@ def release_pair_label(target: str, sandbox: bool = False) -> str:
 
 
 def resolved_v8_crate_version() -> str:
-    cargo_lock = tomllib.loads((ROOT / "codex-rs" / "Cargo.lock").read_text())
+    cargo_lock_path = ROOT / "codex-rs" / "Cargo.lock"
+    if not cargo_lock_path.is_file():
+        cargo_lock_path = ROOT / "upstream" / "codex-rs" / "Cargo.lock"
+    cargo_lock = tomllib.loads(cargo_lock_path.read_text())
     versions = sorted(
         {
             package["version"]
