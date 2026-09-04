@@ -546,6 +546,7 @@ jobs:
       - uses: ./.github/actions/prepare-patched-upstream
         with:
           upstream-ref: ${{ needs.prepare.outputs.upstream_tag }}
+          apply-patches: false
 
       - name: Resolve upstream Rust toolchain
         id: rust_toolchain
