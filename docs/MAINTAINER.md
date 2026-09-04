@@ -13,11 +13,12 @@
 9. Name a single patch `<short-slug>.patch`; for dependent patch series, use numeric prefixes such as `0001-` and `0002-` when explicit ordering is helpful.
 10. Add a regression test before implementing the fix and verify that it fails for the unfixed code.
 11. Implement the fix and verify that the same test passes.
-12. Record the regression test and its before/after results in the issue `README.md`.
-13. Update any issue labels such as `funded`, `quote-request`, `professional-services`, or `maintainer-approved` as needed.
-14. Once an early-access build containing the fix is ready, create the Paddle checkout link or invoice and deliver immediate access to the buyer after payment.
-15. Early-access builds may contain multiple unreleased fixes; do not promise buyers exclusive access to only one isolated patch unless you are prepared to ship separate builds.
-16. Add each purchased fix to the public release flow for this repository no later than 30 days after first customer delivery of that fix.
+12. Match the surrounding upstream test style rather than introducing repository-specific test conventions.
+13. Record the regression test and its before/after results in the issue `README.md`.
+14. Update any issue labels such as `funded`, `quote-request`, `professional-services`, or `maintainer-approved` as needed.
+15. Once an early-access build containing the fix is ready, create the Paddle checkout link or invoice and deliver immediate access to the buyer after payment.
+16. Early-access builds may contain multiple unreleased fixes; do not promise buyers exclusive access to only one isolated patch unless you are prepared to ship separate builds.
+17. Add each purchased fix to the public release flow for this repository no later than 30 days after first customer delivery of that fix.
 
 ## Test It
 
