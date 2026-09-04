@@ -168,6 +168,7 @@ def bazel_args_with_remote_config(
         for env_name, option_prefix in (
             ("BAZEL_REPO_CONTENTS_CACHE", "--repo_contents_cache="),
             ("BAZEL_REPOSITORY_CACHE", "--repository_cache="),
+            ("BAZEL_DISK_CACHE", "--disk_cache="),
         )
         if env.get(env_name)
         and not any(

@@ -92,17 +92,31 @@ jobs:
           sudo apt-get update -y
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends pkg-config libcap-dev
 
-      - name: Set up Bazel CI
-        uses: ./upstream/.github/actions/setup-bazel-ci
+      - name: Prepare Bazel CI
+        id: prepare_bazel
+        uses: ./.github/actions/prepare-bazel-ci
         with:
           target: x86_64-unknown-linux-gnu
+          cache-scope: sdk
+
+      - name: Restore Bazel disk cache
+        id: restore_bazel_disk_cache
+        continue-on-error: true
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ env.BAZEL_DISK_CACHE }}
+          key: bazel-disk-sdk-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('upstream/MODULE.bazel.lock', 'upstream/codex-rs/Cargo.lock', 'patches/openai/codex/ci/**') }}
+          restore-keys: |
+            bazel-disk-sdk-${{ runner.os }}-${{ runner.arch }}-
 
       - name: Build patched codex binary for SDK tests
         shell: bash
+        env:
+          BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
         run: |
           set -euo pipefail
           cd upstream
-          ./.github/scripts/run-bazel-ci.sh \
+          "${GITHUB_WORKSPACE}/.github/scripts/run-bazel-ci.sh" \
             --remote-download-toplevel \
             -- \
             build \
@@ -112,7 +126,7 @@ jobs:
             //codex-rs/cli:codex \
             //codex-rs/code-mode-host:codex-code-mode-host
           cquery_output="$(
-            ./.github/scripts/run-bazel-ci.sh \
+            "${GITHUB_WORKSPACE}/.github/scripts/run-bazel-ci.sh" \
               -- \
               cquery \
               --output=files \
@@ -130,7 +144,7 @@ jobs:
             echo "Unable to locate Bazel-built codex at ${codex_bazel_output_path}." >&2
             exit 1
           }
-          code_mode_host_output_path="$(${GITHUB_WORKSPACE}/upstream/.github/scripts/run-bazel-ci.sh \
+          code_mode_host_output_path="$(${GITHUB_WORKSPACE}/.github/scripts/run-bazel-ci.sh \
             -- \
             cquery \
             --output=files \
@@ -178,6 +192,27 @@ jobs:
         run: |
           set -euo pipefail
           pnpm --dir upstream/sdk/typescript run test
+
+      - name: Shut down Bazel before saving caches
+        if: always() && !cancelled()
+        shell: bash
+        run: bazel shutdown || true
+
+      - name: Save Bazel disk cache
+        if: always() && !cancelled()
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ env.BAZEL_DISK_CACHE }}
+          key: bazel-disk-sdk-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('upstream/MODULE.bazel.lock', 'upstream/codex-rs/Cargo.lock', 'patches/openai/codex/ci/**') }}
+
+      - name: Save Bazel repository cache
+        if: always() && !cancelled()
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ steps.prepare_bazel.outputs.repository-cache-path }}
+          key: ${{ steps.prepare_bazel.outputs.repository-cache-key }}
 
       - name: Check for a clean worktree
         if: always() && !cancelled()
