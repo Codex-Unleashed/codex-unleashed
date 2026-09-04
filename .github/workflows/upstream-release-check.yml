@@ -449,7 +449,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          echo "RUSTFLAGS=--remap-path-prefix=${GITHUB_WORKSPACE}=/home/runner/work/codex/codex --remap-path-prefix=${CARGO_TARGET_DIR}=/home/runner/work/codex/codex/codex-rs/target" >> "$GITHUB_ENV"
+          echo "RUSTFLAGS=--remap-path-prefix=${GITHUB_WORKSPACE}/upstream=/home/runner/work/codex/codex --remap-path-prefix=${CARGO_TARGET_DIR}=/home/runner/work/codex/codex/codex-rs/target" >> "$GITHUB_ENV"
 
       - name: Setup pnpm
         uses: pnpm/action-setup@a8198c4bff370c8506180b035930dea56dbd5288 # v5
