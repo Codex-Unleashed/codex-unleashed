@@ -120,19 +120,22 @@ configure_rusty_v8_overrides() {
   release_tag="rusty-v8-v${version}"
   base_url="https://github.com/openai/codex/releases/download/${release_tag}"
   binding_dir="${RUSTY_V8_CACHE_DIR:-${TMPDIR:-/tmp}/rusty_v8}/${target}"
+  profile="ptrcomp_sandbox_release"
   if [[ "${target}" == *windows* ]]; then
-    archive_name="rusty_v8_release_${target}.lib.gz"
+    archive_name="rusty_v8_${profile}_${target}.lib.gz"
   else
-    archive_name="librusty_v8_release_${target}.a.gz"
+    archive_name="librusty_v8_${profile}_${target}.a.gz"
   fi
   archive_path="${binding_dir}/${archive_name}"
-  binding_path="${binding_dir}/src_binding_release_${target}.rs"
-  checksums_path="${binding_dir}/rusty_v8_release_${target}.sha256"
+  binding_name="src_binding_${profile}_${target}.rs"
+  binding_path="${binding_dir}/${binding_name}"
+  checksums_name="rusty_v8_${profile}_${target}.sha256"
+  checksums_path="${binding_dir}/${checksums_name}"
 
   mkdir -p "${binding_dir}"
   curl -fsSL "${base_url}/${archive_name}" -o "${archive_path}"
-  curl -fsSL "${base_url}/src_binding_release_${target}.rs" -o "${binding_path}"
-  curl -fsSL "${base_url}/rusty_v8_release_${target}.sha256" -o "${checksums_path}"
+  curl -fsSL "${base_url}/${binding_name}" -o "${binding_path}"
+  curl -fsSL "${base_url}/${checksums_name}" -o "${checksums_path}"
 
   if [[ "$(wc -l < "${checksums_path}")" -ne 2 ]]; then
     echo "ERROR: expected exactly two checksums for ${target} in ${checksums_path}" >&2
@@ -140,9 +143,9 @@ configure_rusty_v8_overrides() {
   fi
 
   if command -v sha256sum >/dev/null 2>&1; then
-    (cd "${binding_dir}" && sha256sum -c "${checksums_path}")
+    (cd "${binding_dir}" && tr -d '\r' < "${checksums_path}" | sha256sum -c -)
   else
-    (cd "${binding_dir}" && shasum -a 256 -c "${checksums_path}")
+    (cd "${binding_dir}" && tr -d '\r' < "${checksums_path}" | shasum -a 256 -c -)
   fi
 
   export RUSTY_V8_ARCHIVE="${archive_path}"
@@ -151,7 +154,7 @@ configure_rusty_v8_overrides() {
 
 should_configure_rusty_v8_overrides() {
   local target="${1:-}"
-  [[ -n "${target}" && "${target}" != *windows* ]]
+  [[ -n "${target}" ]]
 }
 
 run_with_heartbeat() {
