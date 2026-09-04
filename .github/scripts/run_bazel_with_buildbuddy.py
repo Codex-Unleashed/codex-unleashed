@@ -148,6 +148,10 @@ def bazel_args_with_remote_config(
             f"--config={config}",
             f"--remote_header=x-buildbuddy-api-key={api_key}",
         ]
+        if uses_remote_execution(args):
+            # Keep a BuildBuddy quota or availability problem from making a
+            # build fail when the restored GitHub-hosted local cache is usable.
+            remote_args.append("--remote_local_fallback")
 
         # Insert immediately after the Bazel command. This keeps wrapper-added
         # options out of positional payloads and lets later CI configs override

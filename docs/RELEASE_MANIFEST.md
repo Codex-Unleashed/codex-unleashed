@@ -1,7 +1,8 @@
 # Release Verification Tooling
 
 Public releases contain only the runnable package archives and
-`SHA256SUMS.release.txt`, which is sufficient for normal download verification.
+`codex-package_SHA256SUMS`, which is sufficient for normal package-download
+verification.
 
 The repository retains the manifest generator and verifier for maintainer use and
 for private release audits; their output is not published as a release asset.

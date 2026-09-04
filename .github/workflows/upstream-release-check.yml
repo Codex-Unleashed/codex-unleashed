@@ -351,7 +351,9 @@ jobs:
           workspaces: |
             upstream/codex-rs -> target
           key: verify-${{ needs.prepare.outputs.upstream_sha }}-${{ needs.prepare.outputs.patch_hash }}
-          save-if: ${{ github.ref == 'refs/heads/main' }}
+          # Release checks run from tags or scheduled/manual events, not main;
+          # save the verified toolchain outputs so later builds can reuse them.
+          save-if: true
 
       - name: Install upstream dependencies
         shell: bash
@@ -572,7 +574,7 @@ jobs:
           workspaces: |
             upstream/codex-rs -> target
           key: build-${{ matrix.target }}-${{ matrix.bundle }}-${{ needs.prepare.outputs.upstream_sha }}-${{ needs.prepare.outputs.patch_hash }}
-          save-if: ${{ github.ref == 'refs/heads/main' }}
+          save-if: true
 
       - name: Cache rusty_v8 artifacts
         id: rusty_v8_cache
@@ -686,21 +688,6 @@ jobs:
               cp "${release_dir}/${binary}.sigstore" "$dest/${binary}-${{ matrix.target }}.sigstore"
             fi
           done
-
-          if [[ "${{ matrix.target }}" == *linux* && "${{ matrix.bundle }}" == "primary" ]]; then
-            bundle_root="${RUNNER_TEMP}/codex-${{ matrix.target }}-bundle"
-            rm -rf "$bundle_root"
-            mkdir -p "$bundle_root/codex-resources"
-            cp "$dest/codex-${{ matrix.target }}" "$bundle_root/codex"
-            cp "$dest/codex-code-mode-host-${{ matrix.target }}" "$bundle_root/codex-code-mode-host"
-            cp "$dest/bwrap-${{ matrix.target }}" "$bundle_root/codex-resources/bwrap"
-            chmod 0755 \
-              "$bundle_root/codex" \
-              "$bundle_root/codex-code-mode-host" \
-              "$bundle_root/codex-resources/bwrap"
-            tar -C "$bundle_root" -cf - codex codex-code-mode-host codex-resources/bwrap |
-              zstd -T0 -19 -o "$dest/codex-${{ matrix.target }}-bundle.tar.zst"
-          fi
 
       - name: Build Codex package archive
         shell: bash
@@ -925,7 +912,7 @@ jobs:
           workspaces: |
             upstream/codex-rs -> target
           key: build-windows-${{ matrix.target }}-${{ matrix.bundle }}-${{ needs.prepare.outputs.upstream_sha }}-${{ needs.prepare.outputs.patch_hash }}
-          save-if: ${{ github.ref == 'refs/heads/main' }}
+          save-if: true
 
       - name: Cargo build (Windows binaries)
         working-directory: upstream/codex-rs
@@ -1224,9 +1211,17 @@ jobs:
           path: release-artifacts
           run-id: ${{ needs.prepare.outputs.artifact_run_id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          # Match upstream's release workflow: only download final target
-          # packages, not the intermediate build and timing artifacts.
+          # Match upstream's release workflow: download final target artifacts,
+          # not the intermediate build and timing artifacts.
           pattern: "{aarch64,x86_64}-{apple-darwin{,-app-server},unknown-linux-musl{,-app-server},pc-windows-msvc}"
+
+      - name: Download supplemental release artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          path: release-artifacts
+          run-id: ${{ needs.prepare.outputs.artifact_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          pattern: "{*-symbols,python-runtime-wheel-*}"
 
       - name: Stage release assets
         shell: bash
@@ -1240,11 +1235,11 @@ jobs:
               continue
             fi
             case "$base" in
-              codex-package-*.tar.gz|codex-app-server-package-*.tar.gz)
-                staged_name="$base"
+              cargo-timing.html|SHA256SUMS|*.pdb)
+                continue
                 ;;
               *)
-                continue
+                staged_name="$base"
                 ;;
             esac
             if [[ -n "${seen[$staged_name]+x}" ]]; then
@@ -1261,7 +1256,10 @@ jobs:
           set -euo pipefail
           (
             cd release-stage
-            find . -maxdepth 1 -type f -printf '%P\n' | LC_ALL=C sort | xargs sha256sum > SHA256SUMS.release.txt
+            find . -maxdepth 1 -type f \
+              \( -name 'codex-package-*.tar.gz' -o \
+                 -name 'codex-app-server-package-*.tar.gz' \) \
+              -print | LC_ALL=C sort | xargs -r sha256sum > codex-package_SHA256SUMS
           )
 
       - name: Build release notes
@@ -1292,7 +1290,7 @@ jobs:
 
           1. Choose the recommended package for your platform below.
           2. Download it from the **Assets** section at the bottom of this page.
-          3. Verify the download with \`SHA256SUMS.release.txt\` before extracting it.
+          3. Verify the download with \`codex-package_SHA256SUMS\` before extracting it.
 
           | Platform | Asset |
           | --- | --- |
@@ -1315,7 +1313,7 @@ jobs:
 
           - Build date: \`${{ needs.prepare.outputs.build_date }}\`
           - Supported targets: \`${{ needs.prepare.outputs.supported_targets }}\`
-          - Complete release checksums: \`SHA256SUMS.release.txt\`
+          - Package release checksums: \`codex-package_SHA256SUMS\`
 
           This release is intended as a temporary patch layer; patches are removed once the corresponding fix is available upstream.
           EOF

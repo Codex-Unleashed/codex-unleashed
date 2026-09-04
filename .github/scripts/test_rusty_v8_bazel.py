@@ -109,6 +109,7 @@ class RustyV8BazelTest(unittest.TestCase):
                     "build",
                     "--config=buildbuddy-generic-rbe",
                     "--remote_header=x-buildbuddy-api-key=token",
+                    "--remote_local_fallback",
                     "--config=ci-v8",
                     "//third_party/v8:release",
                 ],

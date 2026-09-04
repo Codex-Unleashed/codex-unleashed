@@ -34,7 +34,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--workflow-run-id", default="")
     parser.add_argument("--workflow-run-attempt", default="")
     parser.add_argument("--supported-targets", default="")
-    parser.add_argument("--consolidated-checksums", default="SHA256SUMS.release.txt")
+    parser.add_argument("--consolidated-checksums", default="codex-package_SHA256SUMS")
     parser.add_argument("--attestation-bundle", default="release-provenance.intoto.jsonl")
     return parser.parse_args()
 
