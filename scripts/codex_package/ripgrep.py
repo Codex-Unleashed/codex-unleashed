@@ -3,12 +3,12 @@
 from pathlib import Path
 
 from .dotslash import fetch_dotslash_executable
+from .targets import PATCH_REPO_ROOT
 from .targets import TargetSpec
-from .targets import WORKSPACE_ROOT
 from .targets import resolve_input_path
 
 
-RG_MANIFEST = WORKSPACE_ROOT / "scripts" / "codex_package" / "rg"
+RG_MANIFEST = PATCH_REPO_ROOT / "scripts" / "codex_package" / "rg"
 
 
 def resolve_rg_bin(spec: TargetSpec, rg_bin: Path | None) -> Path:

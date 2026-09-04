@@ -69,15 +69,15 @@ overrides remain authoritative when both variables are already set. Set
 `V8_FROM_SOURCE=1` to leave the build with the `v8` crate source-build path.
 
 `rg` is not built from this repository, so the builder fetches it from the
-DotSlash manifest at `scripts/codex_package/rg` in the selected workspace.
-Downloaded archives are cached under `$TMPDIR/codex-package/<target>-rg` and
-are reused only after the recorded size and SHA-256 digest have been verified.
-Pass `--rg-bin` to use a local ripgrep executable instead.
+DotSlash manifest at `scripts/codex_package/rg`. Downloaded archives are cached
+under `$TMPDIR/codex-package/<target>-rg` and are reused only after the recorded
+size and SHA-256 digest have been verified. Pass `--rg-bin` to use a local
+ripgrep executable instead.
 
 The patched zsh fork used by `shell_zsh_fork` is fetched from the DotSlash
-manifest at `scripts/codex_package/codex-zsh` in the selected workspace when
-the selected target has a matching prebuilt artifact. Downloaded archives are
-cached under `$TMPDIR/codex-package/<target>-zsh` and installed at
+manifest at `scripts/codex_package/codex-zsh` when the selected target has a
+matching prebuilt artifact. Downloaded archives are cached under
+`$TMPDIR/codex-package/<target>-zsh` and installed at
 `codex-resources/zsh/bin/zsh`. Pass `--zsh-manifest` to use a different
 DotSlash manifest, such as the manifest published with a standalone zsh
 artifact release.
