@@ -85,6 +85,8 @@ jobs:
         with:
           workspaces: |
             upstream/codex-rs -> target
+          cache-targets: false
+          cache-directories: ${{ env.CARGO_TARGET_DIR }}
           key: repo-checks-${{ inputs.upstream_ref || 'main' }}
           save-if: ${{ github.ref == 'refs/heads/main' }}
 

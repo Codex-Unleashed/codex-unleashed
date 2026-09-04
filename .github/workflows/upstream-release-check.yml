@@ -336,6 +336,8 @@ jobs:
         with:
           workspaces: |
             upstream/codex-rs -> target
+          cache-targets: false
+          cache-directories: ${{ env.CARGO_TARGET_DIR }}
           key: verify-${{ needs.prepare.outputs.upstream_sha }}-${{ needs.prepare.outputs.patch_hash }}
           # Release checks run from tags or scheduled/manual events, not main;
           # save the verified toolchain outputs so later builds can reuse them.
@@ -444,6 +446,11 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - uses: ./.github/actions/setup-ci
+        with:
+          # Match the target-directory path used by upstream's release jobs.
+          # Several native build scripts embed this path in generated code;
+          # RUSTFLAGS cannot rewrite those literal environment values.
+          cargo-target-dir: /home/runner/work/codex/codex/codex-rs/target
 
       - name: Configure reproducible Rust paths
         shell: bash
@@ -553,6 +560,8 @@ jobs:
         with:
           workspaces: |
             upstream/codex-rs -> target
+          cache-targets: false
+          cache-directories: ${{ env.CARGO_TARGET_DIR }}
           key: build-reproducible-paths-v1-${{ matrix.target }}-${{ matrix.bundle }}-${{ needs.prepare.outputs.upstream_sha }}-${{ needs.prepare.outputs.patch_hash }}
           save-if: true
 
@@ -883,6 +892,8 @@ jobs:
         with:
           workspaces: |
             upstream/codex-rs -> target
+          cache-targets: false
+          cache-directories: ${{ env.CARGO_TARGET_DIR }}
           key: build-windows-reproducible-paths-v1-${{ matrix.target }}-${{ matrix.bundle }}-${{ needs.prepare.outputs.upstream_sha }}-${{ needs.prepare.outputs.patch_hash }}
           save-if: true
 
