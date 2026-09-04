@@ -445,20 +445,11 @@ jobs:
       - name: Checkout patch repo
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Prepare upstream-compatible path (macOS)
-        if: runner.os == 'macOS'
-        shell: bash
-        run: |
-          set -euo pipefail
-          sudo mkdir -p /home/runner/work/codex/codex/codex-rs
-          sudo chown -R "$(id -u):$(id -g)" /home/runner/work
-
       - uses: ./.github/actions/setup-ci
         with:
-          # Match the target-directory path used by upstream's release jobs.
-          # Several native build scripts embed this path in generated code;
-          # RUSTFLAGS cannot rewrite those literal environment values.
-          cargo-target-dir: /home/runner/work/codex/codex/codex-rs/target
+          # Linux hosted runners can use the path from upstream's build
+          # environment. macOS uses its writable hosted-runner path instead.
+          cargo-target-dir: ${{ runner.os == 'macOS' && '/Users/runner/work/codex/codex/codex-rs/target' || '/home/runner/work/codex/codex/codex-rs/target' }}
 
       - name: Configure reproducible Rust paths
         shell: bash
