@@ -461,15 +461,9 @@ jobs:
       - uses: ./.github/actions/setup-ci
         with:
           # Linux hosted runners can use the path from upstream's build
-          # environment. macOS keeps its valid CI-local path and relies on
-          # RUSTFLAGS below to reproduce upstream's embedded target path.
+          # environment. Other platforms are aligned after the upstream
+          # checkout is prepared.
           cargo-target-dir: ${{ runner.os == 'Linux' && '/home/runner/work/codex/codex/codex-rs/target' || '' }}
-
-      - name: Configure reproducible Rust paths
-        shell: bash
-        run: |
-          set -euo pipefail
-          echo "RUSTFLAGS=--remap-path-prefix=${GITHUB_WORKSPACE}/upstream=/home/runner/work/codex/codex --remap-path-prefix=${CARGO_TARGET_DIR}=/home/runner/work/codex/codex/codex-rs/target" >> "$GITHUB_ENV"
 
       - name: Setup pnpm
         uses: pnpm/action-setup@a8198c4bff370c8506180b035930dea56dbd5288 # v5
@@ -553,6 +547,24 @@ jobs:
         with:
           upstream-ref: ${{ needs.prepare.outputs.upstream_tag }}
           apply-patches: false
+
+      - name: Align upstream checkout with release path
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Cargo embeds build-script output paths in release binaries. The
+          # upstream release is built from this canonical GitHub runner path;
+          # use the same physical path instead of compensating with RUSTFLAGS,
+          # which changes Cargo fingerprints.
+          release_checkout="${GITHUB_WORKSPACE%/*/*}/codex/codex"
+          if [[ "${release_checkout}" != "${GITHUB_WORKSPACE}/upstream" ]]; then
+            rm -rf "${release_checkout}"
+            mkdir -p "$(dirname "${release_checkout}")"
+            mv "${GITHUB_WORKSPACE}/upstream" "${release_checkout}"
+            ln -s "${release_checkout}" "${GITHUB_WORKSPACE}/upstream"
+          fi
+          mkdir -p "${release_checkout}/codex-rs/target"
+          echo "CARGO_TARGET_DIR=${release_checkout}/codex-rs/target" >> "$GITHUB_ENV"
 
       - name: Use upstream-compatible Cargo home (Linux musl)
         if: ${{ contains(matrix.target, 'linux-musl') }}
