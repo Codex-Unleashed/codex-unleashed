@@ -154,7 +154,8 @@ configure_rusty_v8_overrides() {
 
 should_configure_rusty_v8_overrides() {
   local target="${1:-}"
-  [[ -n "${target}" ]]
+  [[ -n "${target}" ]] \
+    && [[ -z "${RUSTY_V8_ARCHIVE:-}" || -z "${RUSTY_V8_SRC_BINDING_PATH:-}" ]]
 }
 
 run_with_heartbeat() {
@@ -365,7 +366,7 @@ python3 "${repo_root}/scripts/generate-release-manifest.py" \
   --release-dir "${output_dir}" \
   --output "${output_dir}/release-manifest.json" \
   --patch-repo "${repo_root}" \
-  --patch-repository "${PATCH_REPOSITORY:-cowwoc/codex-fixes}" \
+  --patch-repository "${PATCH_REPOSITORY:-Codex-Unleashed/codex-unleashed}" \
   --upstream-repository "${UPSTREAM_REPOSITORY:-openai/codex}" \
   --upstream-tag "${UPSTREAM_TAG:-}" \
   --upstream-commit "${UPSTREAM_SOURCE_SHA:-${original_upstream_sha}}" \

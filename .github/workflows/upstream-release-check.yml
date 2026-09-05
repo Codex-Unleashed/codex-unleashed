@@ -830,6 +830,11 @@ jobs:
           path: .cache/rusty_v8
           key: rusty-v8-${{ matrix.target }}-${{ needs.prepare.outputs.upstream_tag }}
 
+      - name: Configure rusty_v8 artifact overrides and verify checksums
+        uses: ./.github/actions/setup-rusty-v8
+        with:
+          target: ${{ matrix.target }}
+
       - name: Install upstream dependencies
         shell: bash
         run: |
@@ -899,7 +904,6 @@ jobs:
           export UPSTREAM_BINARIES="${{ matrix.binaries }}"
           export SKIP_UPSTREAM_TESTS=1
           export SKIP_ARTIFACT_COLLECTION=1
-          export RUSTY_V8_CACHE_DIR="${GITHUB_WORKSPACE}/.cache/rusty_v8"
           ./scripts/build-release.sh upstream "${RUNNER_TEMP}/upstream-build-output"
 
       - name: Upload Cargo timings

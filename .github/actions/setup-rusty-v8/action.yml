@@ -19,6 +19,7 @@ runs:
         release_tag="rusty-v8-v${version}"
         base_url="https://github.com/openai/codex/releases/download/${release_tag}"
         binding_dir="${RUNNER_TEMP}/rusty_v8"
+        cache_dir="${GITHUB_WORKSPACE}/.cache/rusty_v8/${TARGET}"
         profile="ptrcomp_sandbox_release"
 
         if [[ "$TARGET" == *-pc-windows-msvc ]]; then
@@ -34,9 +35,14 @@ runs:
         checksums_path="${binding_dir}/${checksums_name}"
 
         mkdir -p "${binding_dir}"
-        curl -fsSL "${base_url}/${archive_name}" -o "${archive_path}"
-        curl -fsSL "${base_url}/${binding_name}" -o "${binding_path}"
-        curl -fsSL "${base_url}/${checksums_name}" -o "${checksums_path}"
+        mkdir -p "${cache_dir}"
+        for name in "${archive_name}" "${binding_name}" "${checksums_name}"; do
+          cached_path="${cache_dir}/${name}"
+          if [[ ! -f "${cached_path}" ]]; then
+            curl -fsSL "${base_url}/${name}" -o "${cached_path}"
+          fi
+          cp "${cached_path}" "${binding_dir}/${name}"
+        done
 
         if [[ "$(wc -l < "${checksums_path}")" -ne 2 ]]; then
           echo "Expected exactly two checksums for ${TARGET} in ${checksums_path}" >&2
