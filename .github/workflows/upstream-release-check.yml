@@ -332,6 +332,7 @@ jobs:
             pnpm-${{ runner.os }}-
 
       - name: Cache Cargo artifacts
+        id: cargo_cache
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: |
@@ -342,6 +343,7 @@ jobs:
           # Release checks run from tags or scheduled/manual events, not main;
           # save the verified toolchain outputs so later builds can reuse them.
           save-if: true
+          cache-on-failure: true
 
       - name: Install upstream dependencies
         shell: bash
@@ -567,6 +569,7 @@ jobs:
             pnpm-${{ runner.os }}-
 
       - name: Cache Cargo artifacts
+        id: cargo_cache
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: |
@@ -575,6 +578,7 @@ jobs:
           cache-directories: ${{ env.CARGO_TARGET_DIR }}
           key: build-reproducible-paths-v1-${{ matrix.target }}-${{ matrix.bundle }}-${{ needs.prepare.outputs.upstream_sha }}-${{ needs.prepare.outputs.patch_hash }}
           save-if: true
+          cache-on-failure: true
 
       - name: Cache rusty_v8 artifacts
         id: rusty_v8_cache
@@ -779,6 +783,7 @@ jobs:
           PNPM_CACHE_HIT: ${{ steps.pnpm_cache.outputs.cache-hit || 'false' }}
           APT_CACHE_HIT: ${{ steps.apt_cache.outputs.cache-hit || 'n/a' }}
           RUSTY_V8_CACHE_HIT: ${{ steps.rusty_v8_cache.outputs.cache-hit || 'false' }}
+          CARGO_CACHE_HIT: ${{ steps.cargo_cache.outputs.cache-hit || 'false' }}
         run: |
           set -euo pipefail
           end_epoch="$(date +%s)"
@@ -793,7 +798,7 @@ jobs:
             echo "- pnpm cache hit: ${PNPM_CACHE_HIT}"
             echo "- APT cache hit: ${APT_CACHE_HIT}"
             echo "- rusty_v8 cache hit: ${RUSTY_V8_CACHE_HIT}"
-            echo "- Cargo cache: managed by Swatinem/rust-cache"
+            echo "- Cargo cache hit: ${CARGO_CACHE_HIT}"
           } >> "$GITHUB_STEP_SUMMARY"
 
       # apt recreates archives/partial as root during installation. Make the
@@ -895,6 +900,7 @@ jobs:
           target: ${{ matrix.target }}
 
       - name: Cache Cargo artifacts
+        id: cargo_cache
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: |
@@ -903,6 +909,7 @@ jobs:
           cache-directories: ${{ env.CARGO_TARGET_DIR }}
           key: build-windows-reproducible-paths-v1-${{ matrix.target }}-${{ matrix.bundle }}-${{ needs.prepare.outputs.upstream_sha }}-${{ needs.prepare.outputs.patch_hash }}
           save-if: true
+          cache-on-failure: true
 
       - name: Cargo build (Windows binaries)
         working-directory: upstream/codex-rs
