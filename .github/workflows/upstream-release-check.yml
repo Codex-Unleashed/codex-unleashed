@@ -245,10 +245,10 @@ jobs:
           patch_files="$(find patches -type f -name '*.patch' -printf '%P ' | sed 's/[[:space:]]*$//')"
           supported_targets="x86_64-unknown-linux-musl, aarch64-unknown-linux-musl, x86_64-apple-darwin, aarch64-apple-darwin, x86_64-pc-windows-msvc, aarch64-pc-windows-msvc"
 
-          # Upstream's release binaries embed the wall-clock time at which
-          # OpenSSL was built, and its archives inherit the same build-file
-          # timestamp. Preserve those values as build metadata so our source
-          # build can reproduce the selected upstream release exactly.
+          # Preserve upstream's release-specific build metadata so our source
+          # build can reproduce the selected release exactly. Linux and
+          # Windows binaries expose the OpenSSL build time; macOS binaries do
+          # not, so their package timestamp is the available fallback.
           build_metadata='{}'
           for target in \
             x86_64-unknown-linux-musl \
@@ -295,10 +295,15 @@ jobs:
                 fi
                 build_on="$(tar -xOzf "${package_archive}" "${binary_member}" | strings | sed -n 's/^built on: //p' | head -n1)"
                 if [[ -z "${build_on}" ]]; then
-                  echo "ERROR: could not find OpenSSL build timestamp in ${package_asset}" >&2
-                  exit 1
+                  if [[ "${target}" == *apple-darwin ]]; then
+                    source_date_epoch="${archive_mtime}"
+                  else
+                    echo "ERROR: could not find OpenSSL build timestamp in ${package_asset}" >&2
+                    exit 1
+                  fi
+                else
+                  source_date_epoch="$(date -u -d "${build_on}" +%s)"
                 fi
-                source_date_epoch="$(date -u -d "${build_on}" +%s)"
               fi
               metadata_key="${target}|${bundle}"
               build_metadata="$(jq -c \
@@ -1397,7 +1402,7 @@ jobs:
             patch_list="${patch_list%$'\n'}"
           fi
           cat > RELEASE_NOTES.md <<EOF
-          # Codex Fixes ${{ needs.prepare.outputs.release_name }}
+          # Codex Unleashed ${{ needs.prepare.outputs.release_name }}
 
           > A public patched Codex build for users who need targeted fixes sooner than the upstream release cycle.
 
