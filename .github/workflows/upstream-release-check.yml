@@ -15,6 +15,14 @@ on:
         description: "Optional completed build run to reuse for publishing."
         required: false
         type: string
+      focus_target:
+        description: "Optional target to build during focused comparison runs."
+        required: false
+        type: string
+      focus_bundle:
+        description: "Optional bundle to build during focused comparison runs."
+        required: false
+        type: string
   schedule:
     - cron: "0 * * * *"
   workflow_dispatch:
@@ -29,6 +37,14 @@ on:
         type: string
       artifact_run_id:
         description: "Optional completed build run to reuse for publishing."
+        required: false
+        type: string
+      focus_target:
+        description: "Optional target to build during focused comparison runs."
+        required: false
+        type: string
+      focus_bundle:
+        description: "Optional bundle to build during focused comparison runs."
         required: false
         type: string
 
@@ -487,7 +503,9 @@ jobs:
     if: >-
       ${{
         needs.prepare.outputs.should_release == 'true' &&
-        needs.prepare.outputs.artifact_run_id == github.run_id
+        needs.prepare.outputs.artifact_run_id == github.run_id &&
+        (inputs.focus_target == '' || inputs.focus_target == matrix.target) &&
+        (inputs.focus_bundle == '' || inputs.focus_bundle == matrix.bundle)
       }}
     name: Build - ${{ matrix.runner }} - ${{ matrix.target }} - ${{ matrix.bundle }}
     runs-on: ${{ matrix.runner }}
@@ -963,7 +981,9 @@ jobs:
     if: >-
       ${{
         needs.prepare.outputs.should_release == 'true' &&
-        needs.prepare.outputs.artifact_run_id == github.run_id
+        needs.prepare.outputs.artifact_run_id == github.run_id &&
+        (inputs.focus_target == '' || inputs.focus_target == matrix.target) &&
+        (inputs.focus_bundle == '' || inputs.focus_bundle == matrix.bundle)
       }}
     name: Build Windows binaries - ${{ matrix.target }} - ${{ matrix.bundle }}
     runs-on: windows-latest
@@ -1113,7 +1133,8 @@ jobs:
     if: >-
       ${{
         needs.prepare.outputs.should_release == 'true' &&
-        needs.prepare.outputs.artifact_run_id == github.run_id
+        needs.prepare.outputs.artifact_run_id == github.run_id &&
+        inputs.focus_target == '' && inputs.focus_bundle == ''
       }}
     name: Build Windows symbols - ${{ matrix.target }}
     runs-on: ubuntu-latest
@@ -1164,7 +1185,8 @@ jobs:
     if: >-
       ${{
         needs.prepare.outputs.should_release == 'true' &&
-        needs.prepare.outputs.artifact_run_id == github.run_id
+        needs.prepare.outputs.artifact_run_id == github.run_id &&
+        inputs.focus_target == '' && inputs.focus_bundle == ''
       }}
     name: Build - windows-latest - ${{ matrix.target }}
     runs-on: windows-latest
@@ -1347,6 +1369,7 @@ jobs:
       ${{
         always() &&
         needs.prepare.outputs.should_release == 'true' &&
+        inputs.focus_target == '' && inputs.focus_bundle == '' &&
         (
           needs.prepare.outputs.artifact_run_id != github.run_id ||
           (
@@ -1496,6 +1519,7 @@ jobs:
       ${{
         always() &&
         needs.prepare.outputs.should_release == 'true' &&
+        inputs.focus_target == '' && inputs.focus_bundle == '' &&
         !cancelled() &&
         needs.publish.result != 'success'
       }}
