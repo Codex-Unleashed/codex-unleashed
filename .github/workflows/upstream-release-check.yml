@@ -339,7 +339,7 @@ jobs:
             upstream/codex-rs -> target
           cache-targets: false
           cache-directories: ${{ env.CARGO_TARGET_DIR }}
-          key: verify-${{ needs.prepare.outputs.upstream_sha }}-${{ needs.prepare.outputs.patch_hash }}
+          shared-key: codex-verify
           # Release checks run from tags or scheduled/manual events, not main;
           # save the verified toolchain outputs so later builds can reuse them.
           save-if: true
@@ -576,7 +576,11 @@ jobs:
             upstream/codex-rs -> target
           cache-targets: false
           cache-directories: ${{ env.CARGO_TARGET_DIR }}
-          key: build-reproducible-paths-v1-${{ matrix.target }}-${{ matrix.bundle }}-${{ needs.prepare.outputs.upstream_sha }}-${{ needs.prepare.outputs.patch_hash }}
+          # Keep one cache per target rather than per bundle or patch revision.
+          # Cargo fingerprints remain the authority on whether an artifact is
+          # reusable; this lets primary and app-server builds share artifacts.
+          shared-key: codex-release-${{ matrix.target }}
+          cache-workspace-crates: true
           save-if: true
           cache-on-failure: true
 
@@ -907,7 +911,10 @@ jobs:
             upstream/codex-rs -> target
           cache-targets: false
           cache-directories: ${{ env.CARGO_TARGET_DIR }}
-          key: build-windows-reproducible-paths-v1-${{ matrix.target }}-${{ matrix.bundle }}-${{ needs.prepare.outputs.upstream_sha }}-${{ needs.prepare.outputs.patch_hash }}
+          # Share compiled workspace crates across primary and app-server jobs;
+          # Cargo fingerprints invalidate only artifacts affected by changes.
+          shared-key: codex-release-${{ matrix.target }}
+          cache-workspace-crates: true
           save-if: true
           cache-on-failure: true
 
