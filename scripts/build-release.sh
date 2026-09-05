@@ -195,7 +195,9 @@ prepare_linux_bwrap_digest() {
   else
     release_dir="codex-rs/target/${target}/release"
   fi
-  run_with_heartbeat cargo build --manifest-path ./codex-rs/Cargo.toml --target "${target}" --release --timings --bin bwrap
+  pushd codex-rs >/dev/null
+  run_with_heartbeat cargo build --target "${target}" --release --timings --bin bwrap
+  popd >/dev/null
 
   bwrap_path="${release_dir}/bwrap"
   if [[ ! -f "${bwrap_path}" ]]; then
@@ -283,7 +285,7 @@ else
   fi
 
   release_binaries="$(default_release_binaries "${build_target}")"
-  build_args=(--manifest-path ./codex-rs/Cargo.toml --release --target "${build_target}")
+  build_args=(--release --target "${build_target}")
   for binary in ${release_binaries}; do
     if [[ "${binary}" == "bwrap" ]]; then
       continue
@@ -300,7 +302,9 @@ else
   fi
 
   build_args+=(--timings)
+  pushd codex-rs >/dev/null
   run_with_heartbeat cargo build "${build_args[@]}"
+  popd >/dev/null
 fi
 
 if [[ -n "${UPSTREAM_ARTIFACT_GLOB:-}" ]]; then
