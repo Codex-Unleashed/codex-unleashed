@@ -154,6 +154,8 @@ jobs:
           INPUT_UPSTREAM_TAG: ${{ inputs.upstream_tag || '' }}
           INPUT_PATCH_RELEASE_NUMBER: ${{ inputs.patch_release_number || '' }}
           INPUT_ARTIFACT_RUN_ID: ${{ inputs.artifact_run_id || '' }}
+          INPUT_FOCUS_TARGET: ${{ inputs.focus_target || '' }}
+          INPUT_FOCUS_BUNDLE: ${{ inputs.focus_bundle || '' }}
           GITHUB_EVENT_NAME: ${{ github.event_name }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
@@ -162,6 +164,11 @@ jobs:
           GITHUB_WORKFLOW: ${{ github.workflow }}
         run: |
           set -euo pipefail
+
+          focused_comparison=false
+          if [[ -n "${INPUT_FOCUS_TARGET}" || -n "${INPUT_FOCUS_BUNDLE}" ]]; then
+            focused_comparison=true
+          fi
 
           active_run_ids="$(
             gh api \
@@ -217,7 +224,7 @@ jobs:
               echo "ERROR: current patch files do not match build run ${INPUT_ARTIFACT_RUN_ID}." >&2
               exit 1
             fi
-            if gh release view "${patched_tag}" >/dev/null 2>&1; then
+            if [[ "${focused_comparison}" != true ]] && gh release view "${patched_tag}" >/dev/null 2>&1; then
               echo "Patched release ${patched_tag} already exists."
               echo "should_release=false" >> "${GITHUB_OUTPUT}"
               echo "upstream_tag=${upstream_tag}" >> "${GITHUB_OUTPUT}"
@@ -284,7 +291,7 @@ jobs:
           failure_marker_name="failed-upstream-release-${patched_tag}-${GITHUB_SHA}"
           export failure_marker_name
 
-          if gh release view "${patched_tag}" >/dev/null 2>&1; then
+          if [[ "${focused_comparison}" != true ]] && gh release view "${patched_tag}" >/dev/null 2>&1; then
             echo "Patched release ${patched_tag} already exists."
             echo "should_release=false" >> "${GITHUB_OUTPUT}"
             echo "upstream_tag=${upstream_tag}" >> "${GITHUB_OUTPUT}"
