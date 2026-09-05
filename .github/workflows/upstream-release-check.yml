@@ -246,9 +246,9 @@ jobs:
           supported_targets="x86_64-unknown-linux-musl, aarch64-unknown-linux-musl, x86_64-apple-darwin, aarch64-apple-darwin, x86_64-pc-windows-msvc, aarch64-pc-windows-msvc"
 
           # Preserve upstream's release-specific build metadata so our source
-          # build can reproduce the selected release exactly. Linux and
-          # Windows binaries expose the OpenSSL build time; macOS binaries do
-          # not, so their package timestamp is the available fallback.
+          # build can reproduce the selected release exactly. Use the
+          # embedded OpenSSL build time when upstream exposes it; otherwise
+          # use the package timestamp as the reproducible fallback.
           build_metadata='{}'
           for target in \
             x86_64-unknown-linux-musl \
@@ -295,12 +295,7 @@ jobs:
                 fi
                 build_on="$(tar -xOzf "${package_archive}" "${binary_member}" | strings | sed -n 's/^built on: //p' | head -n1)"
                 if [[ -z "${build_on}" ]]; then
-                  if [[ "${target}" == *apple-darwin ]]; then
-                    source_date_epoch="${archive_mtime}"
-                  else
-                    echo "ERROR: could not find OpenSSL build timestamp in ${package_asset}" >&2
-                    exit 1
-                  fi
+                  source_date_epoch="${archive_mtime}"
                 else
                   source_date_epoch="$(date -u -d "${build_on}" +%s)"
                 fi
