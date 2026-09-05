@@ -93,6 +93,30 @@ class ResolveZstdCommandTest(unittest.TestCase):
                     1234567890.125,
                 )
 
+    def test_tar_archive_preserves_reference_mtime_text(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            package_dir = root / "package"
+            package_dir.mkdir()
+            (package_dir / "file").write_text("content", encoding="utf-8")
+            archive_path = root / "package.tar.gz"
+
+            with patch.dict(
+                os.environ,
+                {
+                    "CODEX_PACKAGE_ARCHIVE_MEMBER_MTIMES": (
+                        '{"file":"1788545339.2355313"}'
+                    ),
+                },
+            ):
+                write_tar_archive(package_dir, archive_path, mode="w:gz")
+
+            with tarfile.open(archive_path, "r:gz") as archive:
+                self.assertEqual(
+                    archive.getmember("file").pax_headers["mtime"],
+                    "1788545339.2355313",
+                )
+
 
 if __name__ == "__main__":
     unittest.main()

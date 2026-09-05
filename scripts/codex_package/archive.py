@@ -114,7 +114,12 @@ def archive_gzip_mtime() -> int | None:
 def normalize_tar_info(info: tarfile.TarInfo) -> tarfile.TarInfo:
     member_mtimes = archive_member_mtimes()
     if info.name in member_mtimes:
-        info.mtime = member_mtimes[info.name]
+        mtime = member_mtimes[info.name]
+        info.mtime = float(mtime)
+        # Preserve the exact PAX timestamp text from the reference archive.
+        # Converting it through a float can change the final decimal digit and
+        # therefore change an otherwise reproducible tarball.
+        info.pax_headers["mtime"] = mtime
         return info
 
     mtime = archive_mtime()
@@ -123,7 +128,7 @@ def normalize_tar_info(info: tarfile.TarInfo) -> tarfile.TarInfo:
     return info
 
 
-def archive_member_mtimes() -> dict[str, float]:
+def archive_member_mtimes() -> dict[str, str]:
     value = os.environ.get("CODEX_PACKAGE_ARCHIVE_MEMBER_MTIMES")
     if value is None:
         return {}
@@ -137,12 +142,20 @@ def archive_member_mtimes() -> dict[str, float]:
         raise RuntimeError(
             "CODEX_PACKAGE_ARCHIVE_MEMBER_MTIMES must be a JSON object"
         )
-    try:
-        return {str(name): float(mtime) for name, mtime in parsed.items()}
-    except (TypeError, ValueError) as exc:
-        raise RuntimeError(
-            "CODEX_PACKAGE_ARCHIVE_MEMBER_MTIMES values must be numbers"
-        ) from exc
+    result: dict[str, str] = {}
+    for name, mtime in parsed.items():
+        if isinstance(mtime, bool) or not isinstance(mtime, (int, float, str)):
+            raise RuntimeError(
+                "CODEX_PACKAGE_ARCHIVE_MEMBER_MTIMES values must be numbers"
+            )
+        try:
+            float(mtime)
+        except ValueError as exc:
+            raise RuntimeError(
+                "CODEX_PACKAGE_ARCHIVE_MEMBER_MTIMES values must be numbers"
+            ) from exc
+        result[str(name)] = str(mtime)
+    return result
 
 
 def write_tar_zst_archive(package_dir: Path, archive_path: Path) -> None:
