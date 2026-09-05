@@ -338,7 +338,12 @@ jobs:
           workspaces: |
             upstream/codex-rs -> target
           cache-targets: false
-          cache-directories: ${{ env.CARGO_TARGET_DIR }}
+          # Cache Cargo's reusable release intermediates, not final binaries
+          # and archives. This keeps the cache below GitHub's repository quota.
+          cache-directories: |
+            ${{ env.CARGO_TARGET_DIR }}/${{ matrix.target }}/release/build
+            ${{ env.CARGO_TARGET_DIR }}/${{ matrix.target }}/release/deps
+            ${{ env.CARGO_TARGET_DIR }}/${{ matrix.target }}/release/.fingerprint
           shared-key: codex-verify
           # Release checks run from tags or scheduled/manual events, not main;
           # save the verified toolchain outputs so later builds can reuse them.
@@ -575,7 +580,12 @@ jobs:
           workspaces: |
             upstream/codex-rs -> target
           cache-targets: false
-          cache-directories: ${{ env.CARGO_TARGET_DIR }}
+          # Cache Cargo's reusable release intermediates, not final binaries
+          # and archives. This keeps the cache below GitHub's repository quota.
+          cache-directories: |
+            ${{ env.CARGO_TARGET_DIR }}/${{ matrix.target }}/release/build
+            ${{ env.CARGO_TARGET_DIR }}/${{ matrix.target }}/release/deps
+            ${{ env.CARGO_TARGET_DIR }}/${{ matrix.target }}/release/.fingerprint
           # Cache entries are immutable and matrix bundles build in parallel,
           # so include the bundle to prevent the first saver from excluding
           # the other bundle's workspace artifacts.
