@@ -70,6 +70,8 @@ jobs:
       patch_hash: ${{ steps.prepare.outputs.patch_hash }}
       build_metadata: ${{ steps.prepare.outputs.build_metadata }}
       artifact_run_id: ${{ steps.prepare.outputs.artifact_run_id }}
+      unix_matrix: ${{ steps.focus.outputs.unix_matrix }}
+      windows_matrix: ${{ steps.focus.outputs.windows_matrix }}
     steps:
       - name: Checkout patch repo
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -374,6 +376,43 @@ jobs:
           echo "build_metadata=${build_metadata}" >> "${GITHUB_OUTPUT}"
           echo "artifact_run_id=${GITHUB_RUN_ID}" >> "${GITHUB_OUTPUT}"
 
+      - name: Select release comparison matrix
+        id: focus
+        shell: bash
+        env:
+          FOCUS_TARGET: ${{ inputs.focus_target || '' }}
+          FOCUS_BUNDLE: ${{ inputs.focus_bundle || '' }}
+        run: |
+          set -euo pipefail
+          unix_matrix='[
+            {"runner":"ubuntu-latest","target":"x86_64-unknown-linux-musl","bundle":"primary","artifact_name":"x86_64-unknown-linux-musl","binaries":"codex codex-code-mode-host codex-responses-api-proxy bwrap"},
+            {"runner":"ubuntu-24.04-arm","target":"aarch64-unknown-linux-musl","bundle":"primary","artifact_name":"aarch64-unknown-linux-musl","binaries":"codex codex-code-mode-host codex-responses-api-proxy bwrap"},
+            {"runner":"ubuntu-latest","target":"x86_64-unknown-linux-musl","bundle":"app-server","artifact_name":"x86_64-unknown-linux-musl-app-server","binaries":"codex-app-server codex-code-mode-host"},
+            {"runner":"ubuntu-24.04-arm","target":"aarch64-unknown-linux-musl","bundle":"app-server","artifact_name":"aarch64-unknown-linux-musl-app-server","binaries":"codex-app-server codex-code-mode-host"},
+            {"runner":"macos-15","target":"x86_64-apple-darwin","bundle":"primary","timeout_minutes":180,"artifact_name":"x86_64-apple-darwin","binaries":"codex codex-code-mode-host codex-responses-api-proxy"},
+            {"runner":"macos-15","target":"x86_64-apple-darwin","bundle":"app-server","artifact_name":"x86_64-apple-darwin-app-server","binaries":"codex-app-server codex-code-mode-host"},
+            {"runner":"macos-15","target":"aarch64-apple-darwin","bundle":"primary","timeout_minutes":180,"artifact_name":"aarch64-apple-darwin","binaries":"codex codex-code-mode-host codex-responses-api-proxy"},
+            {"runner":"macos-15","target":"aarch64-apple-darwin","bundle":"app-server","artifact_name":"aarch64-apple-darwin-app-server","binaries":"codex-app-server codex-code-mode-host"}
+          ]'
+          windows_matrix='[
+            {"target":"x86_64-pc-windows-msvc","bundle":"primary","timeout_minutes":180,"binaries":"codex codex-code-mode-host codex-responses-api-proxy"},
+            {"target":"aarch64-pc-windows-msvc","bundle":"primary","timeout_minutes":180,"binaries":"codex codex-code-mode-host codex-responses-api-proxy"},
+            {"target":"x86_64-pc-windows-msvc","bundle":"helpers","binaries":"codex-windows-sandbox-setup codex-command-runner"},
+            {"target":"aarch64-pc-windows-msvc","bundle":"helpers","binaries":"codex-windows-sandbox-setup codex-command-runner"},
+            {"target":"x86_64-pc-windows-msvc","bundle":"app-server","binaries":"codex-app-server codex-code-mode-host"},
+            {"target":"aarch64-pc-windows-msvc","bundle":"app-server","binaries":"codex-app-server codex-code-mode-host"}
+          ]'
+          filter_matrix() {
+            jq -c --arg target "$FOCUS_TARGET" --arg bundle "$FOCUS_BUNDLE" \
+              'map(select(($target == "" or .target == $target) and ($bundle == "" or .bundle == $bundle)))'
+          }
+          unix_matrix="$(printf '%s' "$unix_matrix" | filter_matrix)"
+          windows_matrix="$(printf '%s' "$windows_matrix" | filter_matrix)"
+          {
+            echo "unix_matrix=${unix_matrix}"
+            echo "windows_matrix=${windows_matrix}"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Upload build metadata
         if: ${{ steps.prepare.outputs.should_release == 'true' && inputs.artifact_run_id == '' }}
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
@@ -503,9 +542,7 @@ jobs:
     if: >-
       ${{
         needs.prepare.outputs.should_release == 'true' &&
-        needs.prepare.outputs.artifact_run_id == github.run_id &&
-        (inputs.focus_target == '' || inputs.focus_target == matrix.target) &&
-        (inputs.focus_bundle == '' || inputs.focus_bundle == matrix.bundle)
+        needs.prepare.outputs.artifact_run_id == github.run_id
       }}
     name: Build - ${{ matrix.runner }} - ${{ matrix.target }} - ${{ matrix.bundle }}
     runs-on: ${{ matrix.runner }}
@@ -525,49 +562,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - runner: ubuntu-latest
-            target: x86_64-unknown-linux-musl
-            bundle: primary
-            artifact_name: x86_64-unknown-linux-musl
-            binaries: "codex codex-code-mode-host codex-responses-api-proxy bwrap"
-          - runner: ubuntu-24.04-arm
-            target: aarch64-unknown-linux-musl
-            bundle: primary
-            artifact_name: aarch64-unknown-linux-musl
-            binaries: "codex codex-code-mode-host codex-responses-api-proxy bwrap"
-          - runner: ubuntu-latest
-            target: x86_64-unknown-linux-musl
-            bundle: app-server
-            artifact_name: x86_64-unknown-linux-musl-app-server
-            binaries: "codex-app-server codex-code-mode-host"
-          - runner: ubuntu-24.04-arm
-            target: aarch64-unknown-linux-musl
-            bundle: app-server
-            artifact_name: aarch64-unknown-linux-musl-app-server
-            binaries: "codex-app-server codex-code-mode-host"
-          - runner: macos-15
-            target: x86_64-apple-darwin
-            bundle: primary
-            timeout_minutes: 180
-            artifact_name: x86_64-apple-darwin
-            binaries: "codex codex-code-mode-host codex-responses-api-proxy"
-          - runner: macos-15
-            target: x86_64-apple-darwin
-            bundle: app-server
-            artifact_name: x86_64-apple-darwin-app-server
-            binaries: "codex-app-server codex-code-mode-host"
-          - runner: macos-15
-            target: aarch64-apple-darwin
-            bundle: primary
-            timeout_minutes: 180
-            artifact_name: aarch64-apple-darwin
-            binaries: "codex codex-code-mode-host codex-responses-api-proxy"
-          - runner: macos-15
-            target: aarch64-apple-darwin
-            bundle: app-server
-            artifact_name: aarch64-apple-darwin-app-server
-            binaries: "codex-app-server codex-code-mode-host"
+        include: ${{ fromJSON(needs.prepare.outputs.unix_matrix) }}
     steps:
       - name: Record job start
         id: timing_start
@@ -981,9 +976,7 @@ jobs:
     if: >-
       ${{
         needs.prepare.outputs.should_release == 'true' &&
-        needs.prepare.outputs.artifact_run_id == github.run_id &&
-        (inputs.focus_target == '' || inputs.focus_target == matrix.target) &&
-        (inputs.focus_bundle == '' || inputs.focus_bundle == matrix.bundle)
+        needs.prepare.outputs.artifact_run_id == github.run_id
       }}
     name: Build Windows binaries - ${{ matrix.target }} - ${{ matrix.bundle }}
     runs-on: windows-latest
@@ -995,27 +988,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - target: x86_64-pc-windows-msvc
-            bundle: primary
-            timeout_minutes: 180
-            binaries: "codex codex-code-mode-host codex-responses-api-proxy"
-          - target: aarch64-pc-windows-msvc
-            bundle: primary
-            timeout_minutes: 180
-            binaries: "codex codex-code-mode-host codex-responses-api-proxy"
-          - target: x86_64-pc-windows-msvc
-            bundle: helpers
-            binaries: "codex-windows-sandbox-setup codex-command-runner"
-          - target: aarch64-pc-windows-msvc
-            bundle: helpers
-            binaries: "codex-windows-sandbox-setup codex-command-runner"
-          - target: x86_64-pc-windows-msvc
-            bundle: app-server
-            binaries: "codex-app-server codex-code-mode-host"
-          - target: aarch64-pc-windows-msvc
-            bundle: app-server
-            binaries: "codex-app-server codex-code-mode-host"
+        include: ${{ fromJSON(needs.prepare.outputs.windows_matrix) }}
     steps:
       - name: Checkout patch repo
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
