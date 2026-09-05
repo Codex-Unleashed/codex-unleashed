@@ -74,7 +74,10 @@ on:
           - full
 
 concurrency:
-  group: upstream-release-check
+  group: >-
+    upstream-release-check-${{ inputs.verification_level || 'full' }}-${{
+      inputs.focus_target || 'all-targets'
+    }}-${{ inputs.focus_bundle || 'all-bundles' }}
   cancel-in-progress: false
 
 jobs:
