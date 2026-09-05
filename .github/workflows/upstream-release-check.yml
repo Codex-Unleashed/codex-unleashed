@@ -866,8 +866,8 @@ jobs:
               | head -n1
           )"
           if [[ -z "${upstream_zig_root}" ]]; then
-            echo "ERROR: could not determine upstream Zig installation path" >&2
-            exit 1
+            echo "Upstream binary has no embedded Zig path; no path mapping is needed."
+            exit 0
           fi
 
           zig_path="$(readlink -f "$(command -v zig)")"
