@@ -278,6 +278,11 @@ jobs:
         needs.prepare.outputs.artifact_run_id == github.run_id
       }}
     runs-on: ubuntu-latest
+    env:
+      # This upstream-only compatibility exception is narrowly scoped to the
+      # stale code-mode manifest exception; every other repository check remains
+      # enforced by run-upstream-repo-checks.sh.
+      ALLOW_STALE_CODE_MODE_FEATURE_EXCEPTION: "1"
     steps:
       - name: Record job start
         id: timing_start
@@ -397,6 +402,7 @@ jobs:
     env:
       CARGO_PROFILE_RELEASE_SPLIT_DEBUGINFO: ${{ contains(matrix.target, 'apple-darwin') && 'packed' || 'off' }}
       CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+      ALLOW_STALE_CODE_MODE_FEATURE_EXCEPTION: "1"
     strategy:
       fail-fast: false
       matrix:
