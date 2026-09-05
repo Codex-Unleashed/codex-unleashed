@@ -349,6 +349,12 @@ jobs:
               bundles+=" helpers"
             fi
             for bundle in ${bundles}; do
+              if [[ -n "${INPUT_FOCUS_TARGET}" && "${INPUT_FOCUS_TARGET}" != "${target}" ]]; then
+                continue
+              fi
+              if [[ -n "${INPUT_FOCUS_BUNDLE}" && "${INPUT_FOCUS_BUNDLE}" != "${bundle}" ]]; then
+                continue
+              fi
               case "${bundle}" in
                 primary)
                   package_asset="codex-package-${target}.tar.gz"
