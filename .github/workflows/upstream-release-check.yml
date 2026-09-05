@@ -1244,6 +1244,7 @@ jobs:
                 --bundle "$bundle" \
                 --entrypoint-dir "$CARGO_TARGET_DIR/$target/release" \
                 --archive-dir "dist/$target" \
+                --zsh-manifest "${GITHUB_WORKSPACE}/upstream/scripts/codex_package/codex-zsh" \
                 --rg-manifest "${GITHUB_WORKSPACE}/upstream/scripts/codex_package/rg"
           done
 
