@@ -495,6 +495,17 @@ jobs:
             echo "windows_matrix=${windows_matrix}"
           } >> "$GITHUB_OUTPUT"
 
+  debug-prepare-outputs:
+    needs: prepare
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Print prepared outputs
+        run: |
+          echo "prepare result: ${{ needs.prepare.result }}"
+          echo "should_release: ${{ needs.prepare.outputs.should_release }}"
+          echo "artifact_run_id: ${{ needs.prepare.outputs.artifact_run_id }}"
+
       - name: Upload build metadata
         if: >-
           ${{
