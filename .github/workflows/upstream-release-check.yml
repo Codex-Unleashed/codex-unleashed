@@ -89,19 +89,27 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    outputs:
+      needs_full: ${{ steps.check.outputs.needs_full }}
     steps:
       - name: Checkout patch repo
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Check upstream release without compilation
+        id: check
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: ./scripts/check-upstream-release-cheap.sh openai/codex
 
   prepare:
+    needs: cheap-check
     if: >-
       ${{
-        github.event_name != 'schedule' &&
+        always() &&
+        (
+          needs.cheap-check.result == 'skipped' ||
+          needs.cheap-check.outputs.needs_full == 'true'
+        ) &&
         github.event_name != 'push' &&
         inputs.verification_level != 'cheap'
       }}

@@ -141,3 +141,13 @@ check_resource_manifest scripts/codex_package/codex-zsh openai/codex codex-zsh-v
 check_resource_manifest scripts/codex_package/rg BurntSushi/ripgrep 15.2.0
 
 echo "Cheap upstream release check passed for ${upstream_tag}. No compilation was performed."
+
+if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
+  needs_full="false"
+  if [[ "${GITHUB_EVENT_NAME:-}" == "schedule" ]] \
+    && ! gh release view "${upstream_tag}.0" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+    needs_full="true"
+  fi
+  echo "upstream_tag=${upstream_tag}" >> "${GITHUB_OUTPUT}"
+  echo "needs_full=${needs_full}" >> "${GITHUB_OUTPUT}"
+fi
