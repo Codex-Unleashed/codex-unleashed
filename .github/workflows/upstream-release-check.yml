@@ -761,6 +761,41 @@ jobs:
           set -euo pipefail
           bash upstream/.github/scripts/install-musl-build-tools.sh
 
+      - name: Normalize Zig paths to upstream release
+        if: ${{ contains(matrix.target, 'linux-musl') }}
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+          UPSTREAM_TAG: ${{ needs.prepare.outputs.upstream_tag }}
+        run: |
+          set -euo pipefail
+          upstream_binary="${RUNNER_TEMP}/upstream-codex-app-server-${TARGET}"
+          curl -fsSL \
+            "https://github.com/openai/codex/releases/download/${UPSTREAM_TAG}/codex-app-server-package-${TARGET}.tar.gz" \
+            | tar -xzO bin/codex-app-server > "${upstream_binary}"
+
+          upstream_zig_root="$(
+            strings -a "${upstream_binary}" \
+              | sed -n 's#^\(/home/runner/work/_temp/[^/]*/zig-linux-[^/]*/\)lib/libc/include/.*#\1#p' \
+              | sed -n 's#/$##p' \
+              | head -n1
+          )"
+          if [[ -z "${upstream_zig_root}" ]]; then
+            echo "ERROR: could not determine upstream Zig installation path" >&2
+            exit 1
+          fi
+
+          zig_path="$(readlink -f "$(command -v zig)")"
+          zig_root="${zig_path%/zig}"
+          if [[ "${zig_root}" == "${zig_path}" ]]; then
+            echo "ERROR: could not determine local Zig installation path" >&2
+            exit 1
+          fi
+          path_map="-ffile-prefix-map=${zig_root}=${upstream_zig_root}"
+          echo "CFLAGS=${CFLAGS} ${path_map}" >> "$GITHUB_ENV"
+          echo "CXXFLAGS=${CXXFLAGS} ${path_map}" >> "$GITHUB_ENV"
+          echo "Mapped Zig path ${zig_root} to ${upstream_zig_root}"
+
       - name: Disable aws-lc jitter entropy (musl)
         if: ${{ contains(matrix.target, 'linux-musl') }}
         shell: bash
