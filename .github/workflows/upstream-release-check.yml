@@ -818,7 +818,7 @@ jobs:
           # Bump this namespace when the Cargo invocation changes; otherwise
           # Cargo may reuse release intermediates produced by a different
           # invocation and obscure reproducibility comparisons.
-          shared-key: codex-release-v2-${{ matrix.target }}-${{ matrix.bundle }}-${{ fromJSON(needs.prepare.outputs.build_metadata)[format('{0}|{1}', matrix.target, matrix.bundle)].source_date_epoch }}
+          shared-key: codex-release-v3-${{ matrix.target }}-${{ matrix.bundle }}-${{ hashFiles('.github/actions/setup-rusty-v8/action.yml', 'scripts/build-release.sh', '.github/workflows/upstream-release-check.yml') }}-${{ fromJSON(needs.prepare.outputs.build_metadata)[format('{0}|{1}', matrix.target, matrix.bundle)].source_date_epoch }}
           cache-workspace-crates: true
           save-if: true
           cache-on-failure: true
