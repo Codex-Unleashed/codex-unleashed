@@ -11,6 +11,7 @@ Checks:
 
 from __future__ import annotations
 
+import os
 import sys
 import tomllib
 from pathlib import Path
@@ -48,6 +49,12 @@ def main() -> int:
             used_internal_dependency_feature_exceptions,
         ):
             failures_by_path[manifest_key(path)] = errors
+
+    if os.environ.get("ALLOW_STALE_CODE_MODE_FEATURE_EXCEPTION") == "1":
+        # The upstream tag can retain this historical exception after the
+        # feature disappears. Keep the default check strict while allowing
+        # release compatibility checks to acknowledge that one known case.
+        used_manifest_feature_exceptions.add("codex-rs/code-mode/Cargo.toml")
 
     add_unused_exception_errors(
         failures_by_path,
