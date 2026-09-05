@@ -460,6 +460,8 @@ jobs:
           VERIFICATION_LEVEL: ${{ inputs.verification_level || 'full' }}
         run: |
           set -euo pipefail
+          echo "Prepared release: ${{ steps.prepare.outputs.should_release }}"
+          echo "Prepared artifact run: ${{ steps.prepare.outputs.artifact_run_id }}"
           if [[ "${VERIFICATION_LEVEL}" == "sentinel" && -z "${FOCUS_TARGET}" && -z "${FOCUS_BUNDLE}" ]]; then
             FOCUS_TARGET="x86_64-unknown-linux-musl"
             FOCUS_BUNDLE="primary"
