@@ -478,7 +478,6 @@ jobs:
       CARGO_PROFILE_RELEASE_SPLIT_DEBUGINFO: ${{ contains(matrix.target, 'apple-darwin') && 'packed' || 'off' }}
       CARGO_NET_GIT_FETCH_WITH_CLI: "true"
       ALLOW_STALE_CODE_MODE_FEATURE_EXCEPTION: "1"
-      SOURCE_DATE_EPOCH: ${{ fromJSON(needs.prepare.outputs.build_metadata)[format('{0}|{1}', matrix.target, matrix.bundle)].source_date_epoch }}
       CODEX_PACKAGE_ARCHIVE_MTIME: ${{ fromJSON(needs.prepare.outputs.build_metadata)[format('{0}|{1}', matrix.target, matrix.bundle)].archive_mtime }}
       CODEX_PACKAGE_ARCHIVE_GZIP_MTIME: ${{ fromJSON(needs.prepare.outputs.build_metadata)[format('{0}|{1}', matrix.target, matrix.bundle)].archive_gzip_mtime }}
     strategy:
@@ -940,7 +939,6 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: ${{ matrix.timeout_minutes || 180 }}
     env:
-      SOURCE_DATE_EPOCH: ${{ fromJSON(needs.prepare.outputs.build_metadata)[format('{0}|{1}', matrix.target, matrix.bundle)].source_date_epoch }}
       CODEX_PACKAGE_ARCHIVE_MTIME: ${{ fromJSON(needs.prepare.outputs.build_metadata)[format('{0}|{1}', matrix.target, matrix.bundle)].archive_mtime }}
       CODEX_PACKAGE_ARCHIVE_GZIP_MTIME: ${{ fromJSON(needs.prepare.outputs.build_metadata)[format('{0}|{1}', matrix.target, matrix.bundle)].archive_gzip_mtime }}
     strategy:
