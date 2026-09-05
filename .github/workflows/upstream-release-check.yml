@@ -496,7 +496,11 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Upload build metadata
-        if: ${{ steps.prepare.outputs.should_release == 'true' && steps.prepare.outputs.artifact_run_id != '' }}
+        if: >-
+          ${{
+            steps.prepare.outputs.should_release == 'true' &&
+            (inputs.artifact_run_id == null || inputs.artifact_run_id == '')
+          }}
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: release-metadata
@@ -508,7 +512,7 @@ jobs:
     if: >-
       ${{
         needs.prepare.outputs.should_release == 'true' &&
-        needs.prepare.outputs.artifact_run_id != ''
+        (inputs.artifact_run_id == null || inputs.artifact_run_id == '')
       }}
     runs-on: ubuntu-latest
     env:
@@ -624,7 +628,7 @@ jobs:
     if: >-
       ${{
         needs.prepare.outputs.should_release == 'true' &&
-        needs.prepare.outputs.artifact_run_id != '' &&
+        (inputs.artifact_run_id == null || inputs.artifact_run_id == '') &&
         (
           inputs.focus_target == '' ||
           contains(inputs.focus_target, 'linux') ||
@@ -1101,7 +1105,7 @@ jobs:
     if: >-
       ${{
         needs.prepare.outputs.should_release == 'true' &&
-        needs.prepare.outputs.artifact_run_id != '' &&
+        (inputs.artifact_run_id == null || inputs.artifact_run_id == '') &&
         (inputs.focus_target == '' || contains(inputs.focus_target, 'windows'))
       }}
     name: Build Windows binaries - ${{ matrix.target }} - ${{ matrix.bundle }}
@@ -1232,7 +1236,7 @@ jobs:
     if: >-
       ${{
         needs.prepare.outputs.should_release == 'true' &&
-        needs.prepare.outputs.artifact_run_id != '' &&
+        (inputs.artifact_run_id == null || inputs.artifact_run_id == '') &&
         inputs.focus_target == '' && inputs.focus_bundle == ''
       }}
     name: Build Windows symbols - ${{ matrix.target }}
@@ -1284,7 +1288,7 @@ jobs:
     if: >-
       ${{
         needs.prepare.outputs.should_release == 'true' &&
-        needs.prepare.outputs.artifact_run_id != '' &&
+        (inputs.artifact_run_id == null || inputs.artifact_run_id == '') &&
         inputs.focus_target == '' && inputs.focus_bundle == ''
       }}
     name: Build - windows-latest - ${{ matrix.target }}
