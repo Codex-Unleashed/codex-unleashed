@@ -1147,6 +1147,8 @@ jobs:
           - aarch64-pc-windows-msvc
     env:
       WINDOWS_BINARIES: "codex codex-code-mode-host codex-responses-api-proxy codex-windows-sandbox-setup codex-command-runner codex-app-server"
+      CODEX_PACKAGE_ARCHIVE_MTIME: ${{ fromJSON(needs.prepare.outputs.build_metadata)[format('{0}|primary', matrix.target)].archive_mtime }}
+      CODEX_PACKAGE_ARCHIVE_GZIP_MTIME: ${{ fromJSON(needs.prepare.outputs.build_metadata)[format('{0}|primary', matrix.target)].archive_gzip_mtime }}
     steps:
       - name: Checkout patch repo
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
