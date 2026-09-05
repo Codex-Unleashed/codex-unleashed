@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
 
 from pathlib import Path
+import os
 import sys
+import tarfile
 import tempfile
 import unittest
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from codex_package.archive import write_tar_archive
 from codex_package.archive import resolve_zstd_command
 
 
@@ -39,6 +43,32 @@ class ResolveZstdCommandTest(unittest.TestCase):
                     dotslash_manifest=missing_manifest,
                     which=lambda _name: None,
                 )
+
+    def test_tar_archive_uses_source_date_epoch_for_metadata(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            package_dir = root / "package"
+            package_dir.mkdir()
+            (package_dir / "file").write_text("content", encoding="utf-8")
+            archive_path = root / "package.tar.gz"
+
+            with patch.dict(
+                os.environ,
+                {
+                    "SOURCE_DATE_EPOCH": "1234567890",
+                    "CODEX_PACKAGE_ARCHIVE_GZIP_MTIME": "1234567891",
+                },
+            ):
+                write_tar_archive(package_dir, archive_path, mode="w:gz")
+
+            with tarfile.open(archive_path, "r:gz") as archive:
+                member = archive.getmember("file")
+                self.assertEqual(member.mtime, 1234567890)
+
+            self.assertEqual(
+                archive_path.read_bytes()[4:8],
+                (1234567891).to_bytes(4, "little"),
+            )
 
 
 if __name__ == "__main__":

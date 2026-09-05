@@ -1,5 +1,7 @@
 """Archive writers for canonical Codex package directories."""
 
+import gzip
+import os
 import shutil
 import subprocess
 import tarfile
@@ -59,13 +61,60 @@ def archive_format_for_path(path: Path) -> str:
 
 
 def write_tar_archive(package_dir: Path, archive_path: Path, *, mode: str) -> None:
-    with tarfile.open(archive_path, mode) as archive:
+    if mode == "w:gz":
+        gzip_file = gzip.GzipFile(
+            filename=str(archive_path),
+            mode="wb",
+            mtime=archive_gzip_mtime(),
+        )
+        archive = tarfile.open(fileobj=gzip_file, mode="w")
+    else:
+        gzip_file = None
+        archive = tarfile.open(archive_path, mode)
+
+    try:
         for path in package_entries(package_dir):
             archive.add(
                 path,
                 arcname=path.relative_to(package_dir),
                 recursive=False,
+                filter=normalize_tar_info,
             )
+    finally:
+        archive.close()
+        if gzip_file is not None:
+            gzip_file.close()
+
+
+def archive_mtime() -> int | None:
+    value = os.environ.get("CODEX_PACKAGE_ARCHIVE_MTIME")
+    if value is None:
+        value = os.environ.get("SOURCE_DATE_EPOCH")
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except ValueError as exc:
+        raise RuntimeError("SOURCE_DATE_EPOCH must be an integer") from exc
+
+
+def archive_gzip_mtime() -> int | None:
+    value = os.environ.get("CODEX_PACKAGE_ARCHIVE_GZIP_MTIME")
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except ValueError as exc:
+        raise RuntimeError(
+            "CODEX_PACKAGE_ARCHIVE_GZIP_MTIME must be an integer"
+        ) from exc
+
+
+def normalize_tar_info(info: tarfile.TarInfo) -> tarfile.TarInfo:
+    mtime = archive_mtime()
+    if mtime is not None:
+        info.mtime = mtime
+    return info
 
 
 def write_tar_zst_archive(package_dir: Path, archive_path: Path) -> None:
