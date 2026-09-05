@@ -844,7 +844,7 @@ jobs:
             --bundle "$BUNDLE" \
             --entrypoint-dir "${CARGO_TARGET_DIR}/${TARGET}/release" \
             --archive-dir "dist/${TARGET}" \
-            --zsh-manifest "${GITHUB_WORKSPACE}/upstream/scripts/codex_package/codex-zsh" \
+            --zsh-manifest "${GITHUB_WORKSPACE}/scripts/codex_package/codex-zsh" \
             --rg-manifest "${GITHUB_WORKSPACE}/upstream/scripts/codex_package/rg"
 
       - name: Build Python runtime wheel
@@ -1239,7 +1239,7 @@ jobs:
                 --bundle "$bundle" \
                 --entrypoint-dir "$CARGO_TARGET_DIR/$target/release" \
                 --archive-dir "dist/$target" \
-                --zsh-manifest "${GITHUB_WORKSPACE}/upstream/scripts/codex_package/codex-zsh" \
+                --zsh-manifest "${GITHUB_WORKSPACE}/scripts/codex_package/codex-zsh" \
                 --rg-manifest "${GITHUB_WORKSPACE}/upstream/scripts/codex_package/rg"
           done
 
