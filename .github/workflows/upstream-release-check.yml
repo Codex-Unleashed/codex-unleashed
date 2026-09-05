@@ -542,7 +542,12 @@ jobs:
     if: >-
       ${{
         needs.prepare.outputs.should_release == 'true' &&
-        needs.prepare.outputs.artifact_run_id == github.run_id
+        needs.prepare.outputs.artifact_run_id == github.run_id &&
+        (
+          inputs.focus_target == '' ||
+          contains(inputs.focus_target, 'linux') ||
+          contains(inputs.focus_target, 'apple-darwin')
+        )
       }}
     name: Build - ${{ matrix.runner }} - ${{ matrix.target }} - ${{ matrix.bundle }}
     runs-on: ${{ matrix.runner }}
@@ -976,7 +981,8 @@ jobs:
     if: >-
       ${{
         needs.prepare.outputs.should_release == 'true' &&
-        needs.prepare.outputs.artifact_run_id == github.run_id
+        needs.prepare.outputs.artifact_run_id == github.run_id &&
+        (inputs.focus_target == '' || contains(inputs.focus_target, 'windows'))
       }}
     name: Build Windows binaries - ${{ matrix.target }} - ${{ matrix.bundle }}
     runs-on: windows-latest
