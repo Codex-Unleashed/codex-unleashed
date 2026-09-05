@@ -11,11 +11,15 @@ from .targets import resolve_input_path
 RG_MANIFEST = PATCH_REPO_ROOT / "scripts" / "codex_package" / "rg"
 
 
-def resolve_rg_bin(spec: TargetSpec, rg_bin: Path | None) -> Path:
+def resolve_rg_bin(
+    spec: TargetSpec,
+    rg_bin: Path | None,
+    manifest_path: Path | None = None,
+) -> Path:
     if rg_bin is not None:
         return resolve_input_path(rg_bin, "ripgrep executable", "--rg-bin")
 
-    return fetch_rg(spec)
+    return fetch_rg(spec, manifest_path=manifest_path or RG_MANIFEST)
 
 
 def fetch_rg(

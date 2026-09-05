@@ -107,6 +107,14 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--rg-manifest",
+        type=Path,
+        help=(
+            "Optional DotSlash manifest for ripgrep instead of "
+            "scripts/codex_package/rg."
+        ),
+    )
+    parser.add_argument(
         "--codex-command-runner-bin",
         type=Path,
         help=(
@@ -181,7 +189,7 @@ def main() -> int:
     inputs = PackageInputs(
         entrypoint_bin=source_outputs.entrypoint_bin,
         code_mode_host_bin=source_outputs.code_mode_host_bin,
-        rg_bin=resolve_rg_bin(spec, args.rg_bin),
+        rg_bin=resolve_rg_bin(spec, args.rg_bin, args.rg_manifest),
         zsh_bin=resolve_zsh_bin(spec, args.zsh_manifest),
         bwrap_bin=source_outputs.bwrap_bin,
         codex_command_runner_bin=source_outputs.codex_command_runner_bin,

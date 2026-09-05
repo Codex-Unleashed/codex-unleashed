@@ -830,7 +830,9 @@ jobs:
             --target "$TARGET" \
             --bundle "$BUNDLE" \
             --entrypoint-dir "${CARGO_TARGET_DIR}/${TARGET}/release" \
-            --archive-dir "dist/${TARGET}"
+            --archive-dir "dist/${TARGET}" \
+            --zsh-manifest "${GITHUB_WORKSPACE}/upstream/scripts/codex_package/codex-zsh" \
+            --rg-manifest "${GITHUB_WORKSPACE}/upstream/scripts/codex_package/rg"
 
       - name: Build Python runtime wheel
         if: ${{ matrix.bundle == 'primary' }}
@@ -1241,7 +1243,8 @@ jobs:
                 --target "$target" \
                 --bundle "$bundle" \
                 --entrypoint-dir "$CARGO_TARGET_DIR/$target/release" \
-                --archive-dir "dist/$target"
+                --archive-dir "dist/$target" \
+                --rg-manifest "${GITHUB_WORKSPACE}/upstream/scripts/codex_package/rg"
           done
 
       - name: Build Python runtime wheel

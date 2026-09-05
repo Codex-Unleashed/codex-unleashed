@@ -11,6 +11,7 @@ Usage: build-codex-package-archive.sh \
   [--bwrap-bin <path>] \
   [--code-mode-host-bin <path>] \
   [--zsh-manifest <path>] \
+  [--rg-manifest <path>] \
   [--codex-command-runner-bin <path>] \
   [--codex-windows-sandbox-setup-bin <path>] \
   [--target-suffixed-entrypoint]
@@ -58,6 +59,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --zsh-manifest)
       resource_args+=(--zsh-manifest "${2:?--zsh-manifest requires a value}")
+      shift 2
+      ;;
+    --rg-manifest)
+      resource_args+=(--rg-manifest "${2:?--rg-manifest requires a value}")
       shift 2
       ;;
     --codex-command-runner-bin)
