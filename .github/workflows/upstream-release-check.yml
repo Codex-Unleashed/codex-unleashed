@@ -855,7 +855,7 @@ jobs:
             echo "ERROR: could not determine local Zig installation path" >&2
             exit 1
           fi
-          path_map="-ffile-prefix-map=${zig_root}=${upstream_zig_root}"
+          path_map="-ffile-prefix-map=${zig_root}=${upstream_zig_root} -fdebug-prefix-map=${zig_root}=${upstream_zig_root}"
           echo "CFLAGS=${CFLAGS} ${path_map}" >> "$GITHUB_ENV"
           echo "CXXFLAGS=${CXXFLAGS} ${path_map}" >> "$GITHUB_ENV"
           echo "Mapped Zig path ${zig_root} to ${upstream_zig_root}"
