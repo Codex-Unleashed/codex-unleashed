@@ -33,6 +33,14 @@ on:
   push:
     branches:
       - main
+    paths:
+      - "patches/**"
+      - "scripts/**"
+      - ".github/actions/**"
+      - ".github/scripts/**"
+      - ".github/workflows/upstream-release-check.yml"
+      - ".github/workflows/rust-release.yml"
+      - "vendor/openai-codex/**"
   workflow_dispatch:
     inputs:
       upstream_tag:
