@@ -467,14 +467,14 @@ jobs:
             FOCUS_BUNDLE="primary"
           fi
           unix_matrix='[
-            {"runner":"ubuntu-latest","target":"x86_64-unknown-linux-musl","bundle":"primary","artifact_name":"x86_64-unknown-linux-musl","binaries":"codex codex-code-mode-host codex-responses-api-proxy bwrap"},
-            {"runner":"ubuntu-24.04-arm","target":"aarch64-unknown-linux-musl","bundle":"primary","artifact_name":"aarch64-unknown-linux-musl","binaries":"codex codex-code-mode-host codex-responses-api-proxy bwrap"},
-            {"runner":"ubuntu-latest","target":"x86_64-unknown-linux-musl","bundle":"app-server","artifact_name":"x86_64-unknown-linux-musl-app-server","binaries":"codex-app-server codex-code-mode-host"},
-            {"runner":"ubuntu-24.04-arm","target":"aarch64-unknown-linux-musl","bundle":"app-server","artifact_name":"aarch64-unknown-linux-musl-app-server","binaries":"codex-app-server codex-code-mode-host"},
-            {"runner":"macos-15","target":"x86_64-apple-darwin","bundle":"primary","timeout_minutes":180,"artifact_name":"x86_64-apple-darwin","binaries":"codex codex-code-mode-host codex-responses-api-proxy"},
-            {"runner":"macos-15","target":"x86_64-apple-darwin","bundle":"app-server","artifact_name":"x86_64-apple-darwin-app-server","binaries":"codex-app-server codex-code-mode-host"},
-            {"runner":"macos-15","target":"aarch64-apple-darwin","bundle":"primary","timeout_minutes":180,"artifact_name":"aarch64-apple-darwin","binaries":"codex codex-code-mode-host codex-responses-api-proxy"},
-            {"runner":"macos-15","target":"aarch64-apple-darwin","bundle":"app-server","artifact_name":"aarch64-apple-darwin-app-server","binaries":"codex-app-server codex-code-mode-host"}
+            {"runner":"ubuntu-latest","target":"x86_64-unknown-linux-musl","bundle":"primary","build_jobs":64,"artifact_name":"x86_64-unknown-linux-musl","binaries":"codex codex-code-mode-host codex-responses-api-proxy bwrap"},
+            {"runner":"ubuntu-24.04-arm","target":"aarch64-unknown-linux-musl","bundle":"primary","build_jobs":16,"artifact_name":"aarch64-unknown-linux-musl","binaries":"codex codex-code-mode-host codex-responses-api-proxy bwrap"},
+            {"runner":"ubuntu-latest","target":"x86_64-unknown-linux-musl","bundle":"app-server","build_jobs":64,"artifact_name":"x86_64-unknown-linux-musl-app-server","binaries":"codex-app-server codex-code-mode-host"},
+            {"runner":"ubuntu-24.04-arm","target":"aarch64-unknown-linux-musl","bundle":"app-server","build_jobs":16,"artifact_name":"aarch64-unknown-linux-musl-app-server","binaries":"codex-app-server codex-code-mode-host"},
+            {"runner":"macos-15","target":"x86_64-apple-darwin","bundle":"primary","build_jobs":5,"timeout_minutes":180,"artifact_name":"x86_64-apple-darwin","binaries":"codex codex-code-mode-host codex-responses-api-proxy"},
+            {"runner":"macos-15","target":"x86_64-apple-darwin","bundle":"app-server","build_jobs":5,"artifact_name":"x86_64-apple-darwin-app-server","binaries":"codex-app-server codex-code-mode-host"},
+            {"runner":"macos-15","target":"aarch64-apple-darwin","bundle":"primary","build_jobs":5,"timeout_minutes":180,"artifact_name":"aarch64-apple-darwin","binaries":"codex codex-code-mode-host codex-responses-api-proxy"},
+            {"runner":"macos-15","target":"aarch64-apple-darwin","bundle":"app-server","build_jobs":5,"artifact_name":"aarch64-apple-darwin-app-server","binaries":"codex-app-server codex-code-mode-host"}
           ]'
           windows_matrix='[
             {"target":"x86_64-pc-windows-msvc","bundle":"primary","timeout_minutes":180,"binaries":"codex codex-code-mode-host codex-responses-api-proxy"},
@@ -642,6 +642,10 @@ jobs:
       id-token: write
     env:
       CARGO_PROFILE_RELEASE_SPLIT_DEBUGINFO: ${{ contains(matrix.target, 'apple-darwin') && 'packed' || 'off' }}
+      # ThinLTO output can depend on Cargo's parallelism. Match the logical
+      # CPU count of the corresponding upstream release runner so a clean
+      # source build has the same link/code-generation schedule.
+      CARGO_BUILD_JOBS: ${{ matrix.build_jobs }}
       CARGO_NET_GIT_FETCH_WITH_CLI: "true"
       ALLOW_STALE_CODE_MODE_FEATURE_EXCEPTION: "1"
       SOURCE_DATE_EPOCH: ${{ fromJSON(needs.prepare.outputs.build_metadata)[format('{0}|{1}', matrix.target, matrix.bundle)].source_date_epoch }}
