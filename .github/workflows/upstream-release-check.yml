@@ -576,10 +576,10 @@ jobs:
             upstream/codex-rs -> target
           cache-targets: false
           cache-directories: ${{ env.CARGO_TARGET_DIR }}
-          # Keep one cache per target rather than per bundle or patch revision.
-          # Cargo fingerprints remain the authority on whether an artifact is
-          # reusable; this lets primary and app-server builds share artifacts.
-          shared-key: codex-release-${{ matrix.target }}
+          # Cache entries are immutable and matrix bundles build in parallel,
+          # so include the bundle to prevent the first saver from excluding
+          # the other bundle's workspace artifacts.
+          shared-key: codex-release-${{ matrix.target }}-${{ matrix.bundle }}
           cache-workspace-crates: true
           save-if: true
           cache-on-failure: true
@@ -911,9 +911,10 @@ jobs:
             upstream/codex-rs -> target
           cache-targets: false
           cache-directories: ${{ env.CARGO_TARGET_DIR }}
-          # Share compiled workspace crates across primary and app-server jobs;
-          # Cargo fingerprints invalidate only artifacts affected by changes.
-          shared-key: codex-release-${{ matrix.target }}
+          # Cache entries are immutable and matrix bundles build in parallel,
+          # so include the bundle to prevent the first saver from excluding
+          # the other bundle's workspace artifacts.
+          shared-key: codex-release-${{ matrix.target }}-${{ matrix.bundle }}
           cache-workspace-crates: true
           save-if: true
           cache-on-failure: true
