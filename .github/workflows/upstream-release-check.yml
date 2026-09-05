@@ -30,6 +30,9 @@ on:
         type: string
   schedule:
     - cron: "0 * * * *"
+  push:
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       upstream_tag:
@@ -71,6 +74,7 @@ jobs:
     if: >-
       ${{
         github.event_name == 'schedule' ||
+        github.event_name == 'push' ||
         inputs.verification_level == 'cheap'
       }}
     name: Cheap upstream release check
@@ -90,6 +94,7 @@ jobs:
     if: >-
       ${{
         github.event_name != 'schedule' &&
+        github.event_name != 'push' &&
         inputs.verification_level != 'cheap'
       }}
     permissions:
