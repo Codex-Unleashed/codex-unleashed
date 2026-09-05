@@ -294,10 +294,10 @@ jobs:
                   exit 1
                 fi
                 build_on="$(tar -xOzf "${package_archive}" "${binary_member}" | strings | sed -n 's/^built on: //p' | head -n1)"
-                if [[ -z "${build_on}" ]]; then
-                  source_date_epoch="${archive_mtime}"
+                if [[ -n "${build_on}" ]] && source_date_epoch="$(date -u -d "${build_on}" +%s 2>/dev/null)"; then
+                  :
                 else
-                  source_date_epoch="$(date -u -d "${build_on}" +%s)"
+                  source_date_epoch="${archive_mtime}"
                 fi
               fi
               metadata_key="${target}|${bundle}"
