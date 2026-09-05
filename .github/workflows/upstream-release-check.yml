@@ -260,7 +260,17 @@ jobs:
             bundles="primary app-server"
             if [[ "${target}" == *windows* ]]; then
               bundles+=" helpers"
+              standalone_asset="codex-${target}.exe.tar.gz"
+            else
+              standalone_asset="codex-${target}.tar.gz"
             fi
+            standalone_asset_dir="${RUNNER_TEMP}/upstream-release-metadata/${target}-standalone"
+            mkdir -p "${standalone_asset_dir}"
+            gh release download "${upstream_tag}" \
+              --repo openai/codex \
+              --pattern "${standalone_asset}" \
+              --dir "${standalone_asset_dir}"
+            standalone_archive_mtime="$(python3 -c 'import sys, tarfile; print(int(tarfile.open(sys.argv[1], "r:gz").getmembers()[0].mtime))' "${standalone_asset_dir}/${standalone_asset}")"
             for bundle in ${bundles}; do
               case "${bundle}" in
                 primary)
@@ -282,6 +292,7 @@ jobs:
               package_archive="${upstream_asset_dir}/${package_asset}"
               archive_mtime="$(python3 -c 'import sys, tarfile; print(int(tarfile.open(sys.argv[1], "r:gz").getmembers()[0].mtime))' "${package_archive}")"
               archive_gzip_mtime="$(python3 -c 'import pathlib, sys; print(int.from_bytes(pathlib.Path(sys.argv[1]).read_bytes()[4:8], "little"))' "${package_archive}")"
+              member_mtimes="$(python3 -c 'import json, sys, tarfile; print(json.dumps({member.name: member.mtime for member in tarfile.open(sys.argv[1], "r:gz").getmembers()}, separators=(",", ":")))' "${package_archive}")"
               if [[ "${bundle}" == "helpers" ]]; then
                 # The Windows helper binaries do not embed OpenSSL build
                 # metadata; use the archive timestamp for their reproducible
@@ -306,7 +317,9 @@ jobs:
                 --argjson source_date_epoch "${source_date_epoch}" \
                 --argjson archive_mtime "${archive_mtime}" \
                 --argjson archive_gzip_mtime "${archive_gzip_mtime}" \
-                '. + {($key): {source_date_epoch: $source_date_epoch, archive_mtime: $archive_mtime, archive_gzip_mtime: $archive_gzip_mtime}}' \
+                --argjson member_mtimes "${member_mtimes}" \
+                --argjson standalone_archive_mtime "${standalone_archive_mtime}" \
+                '. + {($key): {source_date_epoch: $source_date_epoch, archive_mtime: $archive_mtime, archive_gzip_mtime: $archive_gzip_mtime, standalone_archive_mtime: $standalone_archive_mtime, member_mtimes: $member_mtimes}}' \
                 <<<"${build_metadata}")"
             done
           done
@@ -478,8 +491,11 @@ jobs:
       CARGO_PROFILE_RELEASE_SPLIT_DEBUGINFO: ${{ contains(matrix.target, 'apple-darwin') && 'packed' || 'off' }}
       CARGO_NET_GIT_FETCH_WITH_CLI: "true"
       ALLOW_STALE_CODE_MODE_FEATURE_EXCEPTION: "1"
+      SOURCE_DATE_EPOCH: ${{ fromJSON(needs.prepare.outputs.build_metadata)[format('{0}|{1}', matrix.target, matrix.bundle)].source_date_epoch }}
       CODEX_PACKAGE_ARCHIVE_MTIME: ${{ fromJSON(needs.prepare.outputs.build_metadata)[format('{0}|{1}', matrix.target, matrix.bundle)].archive_mtime }}
       CODEX_PACKAGE_ARCHIVE_GZIP_MTIME: ${{ fromJSON(needs.prepare.outputs.build_metadata)[format('{0}|{1}', matrix.target, matrix.bundle)].archive_gzip_mtime }}
+      CODEX_PACKAGE_ARCHIVE_MEMBER_MTIMES: ${{ toJSON(fromJSON(needs.prepare.outputs.build_metadata)[format('{0}|{1}', matrix.target, matrix.bundle)].member_mtimes) }}
+      CODEX_STANDALONE_ARCHIVE_MTIME: ${{ fromJSON(needs.prepare.outputs.build_metadata)[format('{0}|{1}', matrix.target, matrix.bundle)].standalone_archive_mtime }}
     strategy:
       fail-fast: false
       matrix:
@@ -866,7 +882,7 @@ jobs:
             if [[ "$base" == *.sigstore ]]; then
               continue
             fi
-            python3 -c "import os, sys; timestamp = int(sys.argv[1]); os.utime(sys.argv[2], (timestamp, timestamp))" "${CODEX_PACKAGE_ARCHIVE_MTIME}" "$f"
+            python3 -c "import os, sys; timestamp = int(sys.argv[1]); os.utime(sys.argv[2], (timestamp, timestamp))" "${CODEX_STANDALONE_ARCHIVE_MTIME}" "$f"
             tar -C "$dest" -czf "$dest/${base}.tar.gz" "$base"
             zstd -T0 -19 --rm "$dest/$base"
           done
@@ -939,6 +955,7 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: ${{ matrix.timeout_minutes || 180 }}
     env:
+      SOURCE_DATE_EPOCH: ${{ fromJSON(needs.prepare.outputs.build_metadata)[format('{0}|{1}', matrix.target, matrix.bundle)].source_date_epoch }}
       CODEX_PACKAGE_ARCHIVE_MTIME: ${{ fromJSON(needs.prepare.outputs.build_metadata)[format('{0}|{1}', matrix.target, matrix.bundle)].archive_mtime }}
       CODEX_PACKAGE_ARCHIVE_GZIP_MTIME: ${{ fromJSON(needs.prepare.outputs.build_metadata)[format('{0}|{1}', matrix.target, matrix.bundle)].archive_gzip_mtime }}
     strategy:
@@ -1147,6 +1164,9 @@ jobs:
       WINDOWS_BINARIES: "codex codex-code-mode-host codex-responses-api-proxy codex-windows-sandbox-setup codex-command-runner codex-app-server"
       CODEX_PACKAGE_ARCHIVE_MTIME: ${{ fromJSON(needs.prepare.outputs.build_metadata)[format('{0}|primary', matrix.target)].archive_mtime }}
       CODEX_PACKAGE_ARCHIVE_GZIP_MTIME: ${{ fromJSON(needs.prepare.outputs.build_metadata)[format('{0}|primary', matrix.target)].archive_gzip_mtime }}
+      CODEX_PACKAGE_MEMBER_MTIMES_PRIMARY: ${{ toJSON(fromJSON(needs.prepare.outputs.build_metadata)[format('{0}|primary', matrix.target)].member_mtimes) }}
+      CODEX_PACKAGE_MEMBER_MTIMES_APP_SERVER: ${{ toJSON(fromJSON(needs.prepare.outputs.build_metadata)[format('{0}|app-server', matrix.target)].member_mtimes) }}
+      CODEX_STANDALONE_ARCHIVE_MTIME: ${{ fromJSON(needs.prepare.outputs.build_metadata)[format('{0}|primary', matrix.target)].standalone_archive_mtime }}
     steps:
       - name: Checkout patch repo
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -1194,17 +1214,23 @@ jobs:
           archive_script="${GITHUB_WORKSPACE}/.github/scripts/build-codex-package-archive.sh"
           temp_root="${RUNNER_TEMP}/codex-package-archives"
 
-          mkdir -p "$temp_root/primary" "$temp_root/app-server"
-          printf '%s\0' primary app-server |
-            xargs -0 -P0 -I{} env \
-              TMPDIR="$temp_root/{}" \
-              TMP="$temp_root/{}" \
-              TEMP="$temp_root/{}" \
+          for bundle in primary app-server; do
+            if [[ "$bundle" == primary ]]; then
+              member_mtimes="$CODEX_PACKAGE_MEMBER_MTIMES_PRIMARY"
+            else
+              member_mtimes="$CODEX_PACKAGE_MEMBER_MTIMES_APP_SERVER"
+            fi
+            mkdir -p "$temp_root/$bundle"
+            CODEX_PACKAGE_ARCHIVE_MEMBER_MTIMES="$member_mtimes" \
+              TMPDIR="$temp_root/$bundle" \
+              TMP="$temp_root/$bundle" \
+              TEMP="$temp_root/$bundle" \
               bash "$archive_script" \
                 --target "$target" \
-                --bundle "{}" \
+                --bundle "$bundle" \
                 --entrypoint-dir "$CARGO_TARGET_DIR/$target/release" \
                 --archive-dir "dist/$target"
+          done
 
       - name: Build Python runtime wheel
         shell: bash
@@ -1266,7 +1292,7 @@ jobs:
             if [[ "$base" == *.sigstore ]]; then
               exit 0
             fi
-            python3 -c "import os, sys; timestamp = int(sys.argv[1]); os.utime(sys.argv[2], (timestamp, timestamp))" "${CODEX_PACKAGE_ARCHIVE_MTIME}" "$f"
+            python3 -c "import os, sys; timestamp = int(sys.argv[1]); os.utime(sys.argv[2], (timestamp, timestamp))" "${CODEX_STANDALONE_ARCHIVE_MTIME}" "$f"
             tar -C "$dest" -czf "$dest/${base}.tar.gz" "$base"
             if [[ "$base" == "codex-${target}.exe" ]]; then
               bundle_dir="$(mktemp -d)"

@@ -1,6 +1,7 @@
 """Archive writers for canonical Codex package directories."""
 
 import gzip
+import json
 import os
 import shutil
 import subprocess
@@ -111,10 +112,37 @@ def archive_gzip_mtime() -> int | None:
 
 
 def normalize_tar_info(info: tarfile.TarInfo) -> tarfile.TarInfo:
+    member_mtimes = archive_member_mtimes()
+    if info.name in member_mtimes:
+        info.mtime = member_mtimes[info.name]
+        return info
+
     mtime = archive_mtime()
     if mtime is not None:
         info.mtime = mtime
     return info
+
+
+def archive_member_mtimes() -> dict[str, float]:
+    value = os.environ.get("CODEX_PACKAGE_ARCHIVE_MEMBER_MTIMES")
+    if value is None:
+        return {}
+    try:
+        parsed = json.loads(value)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(
+            "CODEX_PACKAGE_ARCHIVE_MEMBER_MTIMES must be a JSON object"
+        ) from exc
+    if not isinstance(parsed, dict):
+        raise RuntimeError(
+            "CODEX_PACKAGE_ARCHIVE_MEMBER_MTIMES must be a JSON object"
+        )
+    try:
+        return {str(name): float(mtime) for name, mtime in parsed.items()}
+    except (TypeError, ValueError) as exc:
+        raise RuntimeError(
+            "CODEX_PACKAGE_ARCHIVE_MEMBER_MTIMES values must be numbers"
+        ) from exc
 
 
 def write_tar_zst_archive(package_dir: Path, archive_path: Path) -> None:
