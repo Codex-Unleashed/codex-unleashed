@@ -657,6 +657,10 @@ jobs:
             ln -s "${release_checkout}" "${GITHUB_WORKSPACE}/upstream"
           fi
           mkdir -p "${release_checkout}/codex-rs/target"
+          # Upstream's release workflow exposes the physical source checkout
+          # through CODEX_REPO_ROOT. Set it after moving the checkout so build
+          # scripts embed the same canonical path as the official release.
+          echo "CODEX_REPO_ROOT=${release_checkout}" >> "$GITHUB_ENV"
           echo "CARGO_TARGET_DIR=${release_checkout}/codex-rs/target" >> "$GITHUB_ENV"
 
       - name: Use upstream-compatible Cargo home (Linux musl)
