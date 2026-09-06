@@ -179,6 +179,16 @@ def bazel_args_with_remote_config(
             arg.startswith(option_prefix) for arg in configured_args[:separator_idx]
         )
     ]
+    # Keep the GitHub-hosted fallback bounded. BuildBuddy remains the durable,
+    # shared cache when credentials are available; the local disk cache should
+    # not consume the repository's entire Actions cache quota.
+    if env.get("BAZEL_DISK_CACHE"):
+        cache_args.extend(
+            [
+                f"--experimental_disk_cache_gc_max_size={env.get('BAZEL_DISK_CACHE_MAX_SIZE', '768M')}",
+                f"--experimental_disk_cache_gc_max_age={env.get('BAZEL_DISK_CACHE_MAX_AGE', '14d')}",
+            ]
+        )
     return [
         *configured_args[:separator_idx],
         *cache_args,

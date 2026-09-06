@@ -40,7 +40,7 @@ jobs:
 
   release:
     needs: resolve
-    uses: ./.github/workflows/upstream-release-check.yml
+    uses: ./.github/workflows/release-build.yml
     with:
       upstream_tag: ${{ needs.resolve.outputs.upstream_tag }}
       patch_release_number: ${{ inputs.patch_release_number || '0' }}

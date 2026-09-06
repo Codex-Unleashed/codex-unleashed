@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 import subprocess
+import tempfile
 from pathlib import Path
 
 
@@ -27,12 +28,15 @@ def stage_source_tree(checkout: Path, index: Path) -> None:
         "ls-files",
         "--others",
         "--exclude-standard",
-    ).splitlines()
+        "-z",
+        index=index,
+    ).split("\0")
     excluded = (".cargo-home/", ".git/", "target/", ".zig-cache/")
     paths = [
         path
         for path in paths
-        if path != "source-provenance.json"
+        if path
+        and path != "source-provenance.json"
         and not path.endswith(".index")
         and not any(path == prefix.rstrip("/") or path.startswith(prefix) for prefix in excluded)
         and "/target/" not in f"/{path}"
@@ -90,19 +94,39 @@ def main() -> int:
         digest = hashlib.sha256(path.read_bytes()).hexdigest()
         patches.append({"path": path.relative_to(patch_repo).as_posix(), "sha256": digest})
 
-    index = output.with_suffix(".index")
-    try:
+    # Replay patches against the committed baseline in a separate index. Merely
+    # hashing the build checkout cannot establish where its changes came from.
+    with tempfile.TemporaryDirectory(prefix="codex-source-audit-") as temp:
+        expected_index = Path(temp) / "expected.index"
+        index = Path(temp) / "actual.index"
+        run_git(checkout, "read-tree", "HEAD", index=expected_index)
+        for path in patch_files:
+            if path.is_symlink() or not path.resolve().is_relative_to(patch_repo / "patches"):
+                raise ValueError(f"Patch escapes patches/: {path}")
+            run_git(checkout, "apply", "--cached", "--", str(path), index=expected_index)
+        expected_tree = run_git(checkout, "write-tree", index=expected_index)
         run_git(checkout, "read-tree", "HEAD", index=index)
         stage_source_tree(checkout, index)
+        # New files explicitly added by a patch may match upstream .gitignore.
+        additions = run_git(
+            checkout, "diff", "--cached", "--name-only", "--diff-filter=A", "-z", "HEAD",
+            index=expected_index,
+        ).split("\0")
+        for path in filter(None, additions):
+            run_git(checkout, "add", "--force", "--", path, index=index)
         patched_tree = run_git(checkout, "write-tree", index=index)
-        changed_paths = run_git(checkout, "diff", "--cached", "--name-only", index=index)
-        changed_paths = [line for line in changed_paths.splitlines() if line]
+        if patched_tree != expected_tree:
+            raise ValueError(
+                "Source audit failed: checkout is not upstream HEAD plus patches/. "
+                f"Expected tree {expected_tree}, got {patched_tree}"
+            )
+        changed_paths = run_git(checkout, "diff", "--cached", "--name-only", "-z", "HEAD", index=index)
+        changed_paths = [path for path in changed_paths.split("\0") if path]
         diff_sha256 = sha256_git_diff(checkout, index)
-    finally:
-        index.unlink(missing_ok=True)
 
     manifest = {
-        "schema_version": 1,
+        "schema_version": 2,
+        "source_verified": True,
         "upstream": {
             "repository": args.upstream_repository,
             "ref": args.upstream_ref,
