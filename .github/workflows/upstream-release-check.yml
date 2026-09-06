@@ -585,7 +585,7 @@ jobs:
       # This mode is opt-in because serializing LLVM can significantly slow
       # release builds. It is used to test whether our own output is stable,
       # not to claim compatibility with upstream's ordinary build.
-      RUSTFLAGS: ${{ (inputs.reproducibility_mode || 'off') == 'deterministic' && '-Ccodegen-units=1 -Zno-parallel-llvm' || '' }}
+      RUSTFLAGS: ${{ (inputs.reproducibility_mode || 'off') == 'deterministic' && '-Ccodegen-units=1 -Zno-parallel-backend' || '' }}
       RUSTC_BOOTSTRAP: ${{ (inputs.reproducibility_mode || 'off') == 'deterministic' && '1' || '' }}
       CARGO_INCREMENTAL: "0"
       REPRODUCIBILITY_MODE: ${{ inputs.reproducibility_mode || 'off' }}
@@ -1087,7 +1087,7 @@ jobs:
       SOURCE_DATE_EPOCH: ${{ fromJSON(needs.prepare.outputs.build_metadata)[format('{0}|{1}', matrix.target, matrix.bundle)].source_date_epoch }}
       CODEX_PACKAGE_ARCHIVE_MTIME: ${{ fromJSON(needs.prepare.outputs.build_metadata)[format('{0}|{1}', matrix.target, matrix.bundle)].archive_mtime }}
       CODEX_PACKAGE_ARCHIVE_GZIP_MTIME: ${{ fromJSON(needs.prepare.outputs.build_metadata)[format('{0}|{1}', matrix.target, matrix.bundle)].archive_gzip_mtime }}
-      RUSTFLAGS: ${{ (inputs.reproducibility_mode || 'off') == 'deterministic' && '-Ccodegen-units=1 -Zno-parallel-llvm' || '' }}
+      RUSTFLAGS: ${{ (inputs.reproducibility_mode || 'off') == 'deterministic' && '-Ccodegen-units=1 -Zno-parallel-backend' || '' }}
       RUSTC_BOOTSTRAP: ${{ (inputs.reproducibility_mode || 'off') == 'deterministic' && '1' || '' }}
       CARGO_INCREMENTAL: "0"
       REPRODUCIBILITY_MODE: ${{ inputs.reproducibility_mode || 'off' }}
