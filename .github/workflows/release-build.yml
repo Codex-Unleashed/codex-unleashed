@@ -1514,6 +1514,14 @@ jobs:
               -printf '%f\0' | LC_ALL=C sort -z | xargs -0 -r sha256sum > codex-package_SHA256SUMS
           )
 
+      - name: Verify upstream asset contract
+        env:
+          UPSTREAM_TAG: ${{ needs.prepare.outputs.upstream_tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/verify-release-asset-contract.sh openai/codex "$UPSTREAM_TAG" release-stage
+
       - name: Attest release package archives
         uses: actions/attest-build-provenance@v2
         with:

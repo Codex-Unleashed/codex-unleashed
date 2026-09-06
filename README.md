@@ -5,10 +5,10 @@ A public patch queue and patched binary distribution for OpenAI Codex.
 > Warning: Unofficial, not affiliated with OpenAI.
 
 [![License](https://img.shields.io/github/license/codex-unleashed/codex-unleashed)](https://github.com/codex-unleashed/codex-unleashed/blob/main/LICENSE)
-[![Public patches](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/codex-unleashed/codex-unleashed/main/docs/badges/public-fixes.json)](https://github.com/codex-unleashed/codex-unleashed/tree/main/patches)
+[![Public patches](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/codex-unleashed/codex-unleashed/main/docs/badges/public-patches.json)](https://github.com/codex-unleashed/codex-unleashed/tree/main/patches)
 [![Early-access patches](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/codex-unleashed/codex-unleashed/main/docs/badges/early-access.json)](https://codex-unleashed.com/)
 
-**[Get unstuck sooner →](https://codex-unleashed.com/)**
+**[Get early access to Codex fixes and features →](https://codex-unleashed.com/)**
 
 ## Quickstart
 
