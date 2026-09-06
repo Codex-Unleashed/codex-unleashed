@@ -1,4 +1,4 @@
-# Codex Fixes
+# Codex Unleashed
 
 A public patch queue and patched binary distribution for OpenAI Codex.
 
@@ -14,7 +14,7 @@ A public patch queue and patched binary distribution for OpenAI Codex.
 
 ### Download a public patched release
 
-Open the latest [GitHub Release](https://github.com/cowwoc/codex-fixes/releases/latest) and download the archive for your platform.
+Open the latest [GitHub Release](https://github.com/codex-unleashed/codex-unleashed/releases/latest) and download the archive for your platform.
 
 The exact filenames follow the published release artifacts for the current upstream build targets. In practice, pick the artifact matching your OS and architecture.
 
@@ -22,7 +22,7 @@ After extracting the archive, run the included `codex` binary the same way you w
 
 ## Get A Fix Faster
 
-- Public release: use the latest [GitHub Release](https://github.com/cowwoc/codex-fixes/releases/latest).
+- Public release: use the latest [GitHub Release](https://github.com/codex-unleashed/codex-unleashed/releases/latest).
 - Priority access: subscribers receive priority consideration for requested fixes and early access to completed patched builds.
 - New fix request: open an issue and describe the bug, scope, and business impact.
 - Quote request: contact the maintainer directly for private or larger commercial work.
