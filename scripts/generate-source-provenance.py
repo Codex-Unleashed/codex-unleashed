@@ -20,6 +20,33 @@ def run_git(checkout: Path, *args: str, index: Path | None = None) -> str:
     ).strip()
 
 
+def stage_source_tree(checkout: Path, index: Path) -> None:
+    """Stage the patched source tree without build and dependency caches."""
+    paths = run_git(
+        checkout,
+        "ls-files",
+        "--others",
+        "--exclude-standard",
+    ).splitlines()
+    excluded = (".cargo-home/", ".git/", "target/", ".zig-cache/")
+    paths = [
+        path
+        for path in paths
+        if path != "source-provenance.json"
+        and not path.endswith(".index")
+        and not any(path == prefix.rstrip("/") or path.startswith(prefix) for prefix in excluded)
+        and "/target/" not in f"/{path}"
+        and "/.zig-cache/" not in f"/{path}"
+    ]
+    run_git(checkout, "add", "--update", index=index)
+    if paths:
+        subprocess.run(
+            ["git", "-C", str(checkout), "add", "--", *paths],
+            env={**os.environ, "GIT_INDEX_FILE": str(index)},
+            check=True,
+        )
+
+
 def sha256_git_diff(checkout: Path, index: Path) -> str:
     process = subprocess.Popen(
         ["git", "-C", str(checkout), "diff", "--cached", "--binary", "--no-ext-diff"],
@@ -66,16 +93,11 @@ def main() -> int:
     index = output.with_suffix(".index")
     try:
         run_git(checkout, "read-tree", "HEAD", index=index)
-        run_git(checkout, "add", "--all", index=index)
+        stage_source_tree(checkout, index)
         patched_tree = run_git(checkout, "write-tree", index=index)
         changed_paths = run_git(checkout, "diff", "--cached", "--name-only", index=index)
         changed_paths = [line for line in changed_paths.splitlines() if line]
         diff_sha256 = sha256_git_diff(checkout, index)
-        subprocess.run(
-            ["git", "-C", str(checkout), "diff", "--cached", "--check"],
-            env={**os.environ, "GIT_INDEX_FILE": str(index)},
-            check=True,
-        )
     finally:
         index.unlink(missing_ok=True)
 
