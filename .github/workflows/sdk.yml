@@ -37,6 +37,7 @@ jobs:
             --user "$(id -u):$(id -g)" \
             -e HOME=/tmp/codex-python-sdk-home \
             -e UV_LINK_MODE=copy \
+            -e CODEX_UPSTREAM_DIR="${GITHUB_WORKSPACE}/upstream" \
             -v "${GITHUB_WORKSPACE}/upstream:${GITHUB_WORKSPACE}/upstream" \
             -w "${GITHUB_WORKSPACE}/upstream/sdk/python" \
             python:3.12-slim \
@@ -45,7 +46,7 @@ jobs:
               /tmp/uv/bin/python -m pip install uv==0.11.3
               # Keep the executable outside /tmp: the container setup can
               # clean temporary environments while creating the project one.
-              uv_bin="${GITHUB_WORKSPACE}/upstream/.codex-uv"
+              uv_bin="${CODEX_UPSTREAM_DIR}/.codex-uv"
               install -m 755 /tmp/uv/bin/uv "${uv_bin}"
               "${uv_bin}" sync --group dev --frozen
               "${uv_bin}" run --frozen --no-sync ruff check --output-format=github .
