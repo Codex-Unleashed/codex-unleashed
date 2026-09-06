@@ -51,7 +51,7 @@ jobs:
               "${uv_bin}" sync --group dev --frozen
               "${uv_bin}" run --frozen --no-sync ruff check --output-format=github .
               "${uv_bin}" run --frozen --no-sync ruff format --check .
-              # Upstream's formatter implementation uses cargo fmt, but its
+              # The upstream formatter implementation uses cargo fmt, but its
               # matching assertion still expects the removed direct-rustfmt
               # implementation. Keep the rest of the upstream SDK tests
               # active until upstream updates that assertion.
