@@ -5,6 +5,10 @@ inputs:
   upstream-ref:
     description: Upstream git ref or tag to check out.
     required: true
+  expected-upstream-commit:
+    description: Optional commit SHA that the resolved ref must produce.
+    required: false
+    default: ''
   upstream-repo:
     description: Upstream GitHub repository.
     required: false
@@ -29,6 +33,7 @@ runs:
       shell: bash
       env:
         UPSTREAM_REF: ${{ inputs.upstream-ref }}
+        EXPECTED_UPSTREAM_COMMIT: ${{ inputs.expected-upstream-commit }}
         UPSTREAM_REPO: ${{ inputs.upstream-repo }}
         CHECKOUT_PATH: ${{ inputs.checkout-path }}
         FALLBACK_TO_DEFAULT_BRANCH: ${{ inputs.fallback-to-default-branch }}
@@ -49,6 +54,12 @@ runs:
           git -c core.autocrlf=false clone --depth 1 "${repo_url}" "${CHECKOUT_PATH}"
         else
           echo "ERROR: failed to clone ${UPSTREAM_REPO} at ${UPSTREAM_REF}" >&2
+          exit 1
+        fi
+
+        actual_commit="$(git -C "${CHECKOUT_PATH}" rev-parse HEAD)"
+        if [[ -n "${EXPECTED_UPSTREAM_COMMIT}" && "${actual_commit}" != "${EXPECTED_UPSTREAM_COMMIT}" ]]; then
+          echo "ERROR: ${UPSTREAM_REF} resolved to ${actual_commit}, expected ${EXPECTED_UPSTREAM_COMMIT}." >&2
           exit 1
         fi
 

@@ -28,6 +28,11 @@ on:
         required: false
         default: full
         type: string
+      reproducibility_mode:
+        description: "Optional deterministic compiler mode for reproducibility experiments."
+        required: false
+        default: off
+        type: string
   schedule:
     - cron: "0 * * * *"
   push:
@@ -72,13 +77,25 @@ on:
           - cheap
           - sentinel
           - full
+      reproducibility_mode:
+        description: "Compiler mode for reproducibility experiments."
+        required: false
+        default: off
+        type: choice
+        options:
+          - off
+          - deterministic
 
 concurrency:
   group: >-
     upstream-release-check-${{ inputs.verification_level || 'full' }}-${{
       inputs.focus_target || 'all-targets'
-    }}-${{ inputs.focus_bundle || 'all-bundles' }}
-  cancel-in-progress: false
+    }}-${{ inputs.focus_bundle || 'all-bundles' }}-${{
+      inputs.reproducibility_mode || 'off'
+    }}
+  # A newer commit supersedes an in-progress release check. Keeping the old
+  # run alive only wastes hosted-runner time and can publish stale artifacts.
+  cancel-in-progress: true
 
 jobs:
   cheap-check:
@@ -332,10 +349,10 @@ jobs:
           patch_files="$(find patches -type f -name '*.patch' -printf '%P ' | sed 's/[[:space:]]*$//')"
           supported_targets="x86_64-unknown-linux-musl, aarch64-unknown-linux-musl, x86_64-apple-darwin, aarch64-apple-darwin, x86_64-pc-windows-msvc, aarch64-pc-windows-msvc"
 
-          # Preserve upstream's release-specific build metadata so our source
-          # build can reproduce the selected release exactly. Use the
-          # embedded OpenSSL build time when upstream exposes it; otherwise
-          # use the package timestamp as the reproducible fallback.
+          # Use the upstream commit time for deterministic package metadata.
+          # The former implementation downloaded every upstream package and
+          # standalone asset here solely to copy their timestamps. We no
+          # longer compare our bytes with those independently-built assets.
           build_metadata='{}'
           for target in \
             x86_64-unknown-linux-musl \
@@ -355,63 +372,11 @@ jobs:
               if [[ -n "${INPUT_FOCUS_BUNDLE}" && "${INPUT_FOCUS_BUNDLE}" != "${bundle}" ]]; then
                 continue
               fi
-              case "${bundle}" in
-                primary)
-                  package_asset="codex-package-${target}.tar.gz"
-                  if [[ "${target}" == *windows* ]]; then
-                    standalone_asset="codex-${target}.exe.tar.gz"
-                  else
-                    standalone_asset="codex-${target}.tar.gz"
-                  fi
-                  ;;
-                app-server)
-                  package_asset="codex-app-server-package-${target}.tar.gz"
-                  if [[ "${target}" == *windows* ]]; then
-                    standalone_asset="codex-app-server-${target}.exe.tar.gz"
-                  else
-                    standalone_asset="codex-app-server-${target}.tar.gz"
-                  fi
-                  ;;
-                helpers)
-                  package_asset="codex-windows-sandbox-setup-${target}.exe.tar.gz"
-                  standalone_asset="codex-windows-sandbox-setup-${target}.exe.tar.gz"
-                  ;;
-              esac
-              standalone_asset_dir="${RUNNER_TEMP}/upstream-release-metadata/${target}-${bundle}-standalone"
-              mkdir -p "${standalone_asset_dir}"
-              gh release download "${upstream_tag}" \
-                --repo openai/codex \
-                --pattern "${standalone_asset}" \
-                --dir "${standalone_asset_dir}"
-              standalone_archive_mtime="$(python3 -c 'import sys, tarfile; print(int(tarfile.open(sys.argv[1], "r:gz").getmembers()[0].mtime))' "${standalone_asset_dir}/${standalone_asset}")"
-              upstream_asset_dir="${RUNNER_TEMP}/upstream-release-metadata/${target}-${bundle}"
-              mkdir -p "${upstream_asset_dir}"
-              gh release download "${upstream_tag}" \
-                --repo openai/codex \
-                --pattern "${package_asset}" \
-                --dir "${upstream_asset_dir}"
-              package_archive="${upstream_asset_dir}/${package_asset}"
-              archive_mtime="$(python3 -c 'import sys, tarfile; print(int(tarfile.open(sys.argv[1], "r:gz").getmembers()[0].mtime))' "${package_archive}")"
-              archive_gzip_mtime="$(python3 -c 'import pathlib, sys; print(int.from_bytes(pathlib.Path(sys.argv[1]).read_bytes()[4:8], "little"))' "${package_archive}")"
-              member_mtimes="$(python3 -c 'import json, sys, tarfile; print(json.dumps({member.name: member.pax_headers.get("mtime", str(member.mtime)) for member in tarfile.open(sys.argv[1], "r:gz").getmembers()}, separators=(",", ":")))' "${package_archive}")"
-              if [[ "${bundle}" == "helpers" ]]; then
-                # The Windows helper binaries do not embed OpenSSL build
-                # metadata; use the archive timestamp for their reproducible
-                # packaging metadata instead.
-                source_date_epoch="${archive_mtime}"
-              else
-                binary_member="$(tar -tzf "${package_archive}" | awk '/(^|^bin\/)(codex|codex-app-server)(\.exe)?$/ { if (!found) { print; found = 1 } }')"
-                if [[ -z "${binary_member}" ]]; then
-                  echo "ERROR: could not find the package entrypoint in ${package_asset}" >&2
-                  exit 1
-                fi
-                build_on="$(tar -xOzf "${package_archive}" "${binary_member}" | strings | sed -n 's/^built on: //p' | head -n1)"
-                if [[ -n "${build_on}" ]] && source_date_epoch="$(date -u -d "${build_on}" +%s 2>/dev/null)"; then
-                  :
-                else
-                  source_date_epoch="${archive_mtime}"
-                fi
-              fi
+              source_date_epoch="$(git -C upstream show -s --format=%ct "${upstream_sha}")"
+              archive_mtime="${source_date_epoch}"
+              archive_gzip_mtime="${source_date_epoch}"
+              standalone_archive_mtime="${source_date_epoch}"
+              member_mtimes='{}'
               metadata_key="${target}|${bundle}"
               build_metadata="$(jq -c \
                 --arg key "${metadata_key}" \
@@ -546,22 +511,10 @@ jobs:
         shell: bash
         run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b
-        with:
-          version: "0.11.3"
-
-      - name: Set up Zig
-        uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29 # v2.2.1
-        with:
-          version: 0.14.0
-
       - uses: ./.github/actions/prepare-patched-upstream
         with:
           upstream-ref: ${{ needs.prepare.outputs.upstream_tag }}
-
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@e081816240890017053eacbb1bdf337761dc5582 # 1.95.0
+          expected-upstream-commit: ${{ needs.prepare.outputs.upstream_sha }}
 
       - name: Cache pnpm store
         id: pnpm_cache
@@ -571,25 +524,6 @@ jobs:
           key: pnpm-${{ runner.os }}-${{ hashFiles('upstream/pnpm-lock.yaml') }}
           restore-keys: |
             pnpm-${{ runner.os }}-
-
-      - name: Cache Cargo artifacts
-        id: cargo_cache
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: |
-            upstream/codex-rs -> target
-          cache-targets: false
-          # Cache Cargo's reusable release intermediates, not final binaries
-          # and archives. This keeps the cache below GitHub's repository quota.
-          cache-directories: |
-            ${{ env.CARGO_TARGET_DIR }}/${{ matrix.target }}/release/build
-            ${{ env.CARGO_TARGET_DIR }}/${{ matrix.target }}/release/deps
-            ${{ env.CARGO_TARGET_DIR }}/${{ matrix.target }}/release/.fingerprint
-          shared-key: codex-verify
-          # Release checks run from tags or scheduled/manual events, not main;
-          # save the verified toolchain outputs so later builds can reuse them.
-          save-if: true
-          cache-on-failure: true
 
       - name: Install upstream dependencies
         shell: bash
@@ -643,6 +577,13 @@ jobs:
     env:
       CARGO_PROFILE_RELEASE_SPLIT_DEBUGINFO: ${{ contains(matrix.target, 'apple-darwin') && 'packed' || 'off' }}
       CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+      # This mode is opt-in because serializing LLVM can significantly slow
+      # release builds. It is used to test whether our own output is stable,
+      # not to claim compatibility with upstream's ordinary build.
+      RUSTFLAGS: ${{ (inputs.reproducibility_mode || 'off') == 'deterministic' && '-Ccodegen-units=1 -Zno-parallel-llvm' || '' }}
+      RUSTC_BOOTSTRAP: ${{ (inputs.reproducibility_mode || 'off') == 'deterministic' && '1' || '' }}
+      CARGO_INCREMENTAL: "0"
+      REPRODUCIBILITY_MODE: ${{ inputs.reproducibility_mode || 'off' }}
       ALLOW_STALE_CODE_MODE_FEATURE_EXCEPTION: "1"
       SOURCE_DATE_EPOCH: ${{ fromJSON(needs.prepare.outputs.build_metadata)[format('{0}|{1}', matrix.target, matrix.bundle)].source_date_epoch }}
       CODEX_PACKAGE_ARCHIVE_MTIME: ${{ fromJSON(needs.prepare.outputs.build_metadata)[format('{0}|{1}', matrix.target, matrix.bundle)].archive_mtime }}
@@ -650,7 +591,7 @@ jobs:
       CODEX_PACKAGE_ARCHIVE_MEMBER_MTIMES: ${{ toJSON(fromJSON(needs.prepare.outputs.build_metadata)[format('{0}|{1}', matrix.target, matrix.bundle)].member_mtimes) }}
       CODEX_STANDALONE_ARCHIVE_MTIME: ${{ fromJSON(needs.prepare.outputs.build_metadata)[format('{0}|{1}', matrix.target, matrix.bundle)].standalone_archive_mtime }}
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         include: ${{ fromJSON(needs.prepare.outputs.unix_matrix) }}
     steps:
@@ -750,6 +691,7 @@ jobs:
       - uses: ./.github/actions/prepare-patched-upstream
         with:
           upstream-ref: ${{ needs.prepare.outputs.upstream_tag }}
+          expected-upstream-commit: ${{ needs.prepare.outputs.upstream_sha }}
           apply-patches: false
 
       - name: Align upstream checkout with release path
@@ -805,20 +747,17 @@ jobs:
         with:
           workspaces: |
             upstream/codex-rs -> target
-          cache-targets: false
-          # Cache Cargo's reusable release intermediates, not final binaries
-          # and archives. This keeps the cache below GitHub's repository quota.
-          cache-directories: |
-            ${{ env.CARGO_TARGET_DIR }}/${{ matrix.target }}/release/build
-            ${{ env.CARGO_TARGET_DIR }}/${{ matrix.target }}/release/deps
-            ${{ env.CARGO_TARGET_DIR }}/${{ matrix.target }}/release/.fingerprint
+          # Reuse final release objects and binaries when the source and build
+          # inputs are unchanged. Cargo fingerprints still invalidate stale
+          # entries after a source or dependency change.
+          cache-targets: true
           # Cache entries are immutable and matrix bundles build in parallel,
           # so include the bundle to prevent the first saver from excluding
           # the other bundle's workspace artifacts.
           # Bump this namespace when the Cargo invocation changes; otherwise
           # Cargo may reuse release intermediates produced by a different
           # invocation and obscure reproducibility comparisons.
-          shared-key: codex-release-v3-${{ matrix.target }}-${{ matrix.bundle }}-${{ hashFiles('.github/actions/setup-rusty-v8/action.yml', 'scripts/build-release.sh', '.github/workflows/upstream-release-check.yml') }}-${{ fromJSON(needs.prepare.outputs.build_metadata)[format('{0}|{1}', matrix.target, matrix.bundle)].source_date_epoch }}
+          shared-key: codex-release-v3-${{ matrix.target }}-${{ matrix.bundle }}-${{ inputs.reproducibility_mode || 'off' }}-${{ hashFiles('.github/actions/setup-rusty-v8/action.yml', 'scripts/build-release.sh', '.github/workflows/upstream-release-check.yml') }}-${{ fromJSON(needs.prepare.outputs.build_metadata)[format('{0}|{1}', matrix.target, matrix.bundle)].source_date_epoch }}
           cache-workspace-crates: true
           save-if: true
           cache-on-failure: true
@@ -905,6 +844,31 @@ jobs:
           export SKIP_UPSTREAM_TESTS=1
           export SKIP_ARTIFACT_COLLECTION=1
           ./scripts/build-release.sh upstream "${RUNNER_TEMP}/upstream-build-output"
+
+      - name: Record source provenance
+        shell: bash
+        env:
+          UPSTREAM_REF: ${{ needs.prepare.outputs.upstream_tag }}
+          WORKFLOW_PATH: .github/workflows/upstream-release-check.yml
+          WORKFLOW_SHA: ${{ github.sha }}
+          WORKFLOW_RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          python3 scripts/generate-source-provenance.py \
+            --upstream-checkout upstream \
+            --patch-repo . \
+            --output source-provenance.json \
+            --upstream-ref "$UPSTREAM_REF" \
+            --workflow-path "$WORKFLOW_PATH" \
+            --workflow-sha "$WORKFLOW_SHA" \
+            --workflow-run-id "$WORKFLOW_RUN_ID"
+
+      - name: Upload source provenance
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: source-provenance-${{ matrix.target }}-${{ matrix.bundle }}
+          path: source-provenance.json
+          if-no-files-found: error
 
       - name: Upload Cargo timings
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
@@ -1118,8 +1082,12 @@ jobs:
       SOURCE_DATE_EPOCH: ${{ fromJSON(needs.prepare.outputs.build_metadata)[format('{0}|{1}', matrix.target, matrix.bundle)].source_date_epoch }}
       CODEX_PACKAGE_ARCHIVE_MTIME: ${{ fromJSON(needs.prepare.outputs.build_metadata)[format('{0}|{1}', matrix.target, matrix.bundle)].archive_mtime }}
       CODEX_PACKAGE_ARCHIVE_GZIP_MTIME: ${{ fromJSON(needs.prepare.outputs.build_metadata)[format('{0}|{1}', matrix.target, matrix.bundle)].archive_gzip_mtime }}
+      RUSTFLAGS: ${{ (inputs.reproducibility_mode || 'off') == 'deterministic' && '-Ccodegen-units=1 -Zno-parallel-llvm' || '' }}
+      RUSTC_BOOTSTRAP: ${{ (inputs.reproducibility_mode || 'off') == 'deterministic' && '1' || '' }}
+      CARGO_INCREMENTAL: "0"
+      REPRODUCIBILITY_MODE: ${{ inputs.reproducibility_mode || 'off' }}
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         include: ${{ fromJSON(needs.prepare.outputs.windows_matrix) }}
     steps:
@@ -1131,6 +1099,32 @@ jobs:
       - uses: ./.github/actions/prepare-patched-upstream
         with:
           upstream-ref: ${{ needs.prepare.outputs.upstream_tag }}
+          expected-upstream-commit: ${{ needs.prepare.outputs.upstream_sha }}
+
+      - name: Record source provenance
+        shell: bash
+        env:
+          UPSTREAM_REF: ${{ needs.prepare.outputs.upstream_tag }}
+          WORKFLOW_PATH: .github/workflows/upstream-release-check.yml
+          WORKFLOW_SHA: ${{ github.sha }}
+          WORKFLOW_RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          python scripts/generate-source-provenance.py \
+            --upstream-checkout upstream \
+            --patch-repo . \
+            --output source-provenance.json \
+            --upstream-ref "$UPSTREAM_REF" \
+            --workflow-path "$WORKFLOW_PATH" \
+            --workflow-sha "$WORKFLOW_SHA" \
+            --workflow-run-id "$WORKFLOW_RUN_ID"
+
+      - name: Upload source provenance
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: source-provenance-${{ matrix.target }}-${{ matrix.bundle }}
+          path: source-provenance.json
+          if-no-files-found: error
 
       - name: Print runner specs (Windows)
         shell: powershell
@@ -1175,12 +1169,13 @@ jobs:
         with:
           workspaces: |
             upstream/codex-rs -> target
-          cache-targets: false
-          cache-directories: ${{ env.CARGO_TARGET_DIR }}
+          # Cache the complete target tree so unchanged release binaries do
+          # not need to be linked again on the next run.
+          cache-targets: true
           # Cache entries are immutable and matrix bundles build in parallel,
           # so include the bundle to prevent the first saver from excluding
           # the other bundle's workspace artifacts.
-          shared-key: codex-release-${{ matrix.target }}-${{ matrix.bundle }}-${{ fromJSON(needs.prepare.outputs.build_metadata)[format('{0}|{1}', matrix.target, matrix.bundle)].source_date_epoch }}
+          shared-key: codex-release-${{ matrix.target }}-${{ matrix.bundle }}-${{ inputs.reproducibility_mode || 'off' }}-${{ fromJSON(needs.prepare.outputs.build_metadata)[format('{0}|{1}', matrix.target, matrix.bundle)].source_date_epoch }}
           cache-workspace-crates: true
           save-if: true
           cache-on-failure: true
@@ -1247,7 +1242,7 @@ jobs:
     env:
       WINDOWS_BINARIES: "codex codex-code-mode-host codex-responses-api-proxy codex-windows-sandbox-setup codex-command-runner codex-app-server"
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         target:
           - x86_64-pc-windows-msvc
@@ -1297,7 +1292,7 @@ jobs:
     name: Build - windows-latest - ${{ matrix.target }}
     runs-on: windows-latest
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         target:
           - x86_64-pc-windows-msvc
@@ -1318,6 +1313,7 @@ jobs:
       - uses: ./.github/actions/prepare-patched-upstream
         with:
           upstream-ref: ${{ needs.prepare.outputs.upstream_tag }}
+          expected-upstream-commit: ${{ needs.prepare.outputs.upstream_sha }}
 
       - name: Download prebuilt Windows primary binaries
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -1511,6 +1507,14 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           pattern: "{*-symbols,python-runtime-wheel-*}"
 
+      - name: Download source provenance
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: source-provenance-x86_64-unknown-linux-musl-primary
+          path: source-provenance
+          run-id: ${{ needs.prepare.outputs.artifact_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Stage release assets
         shell: bash
         run: |
@@ -1537,6 +1541,7 @@ jobs:
             seen[$staged_name]=1
             cp "$file" "release-stage/${staged_name}"
           done < <(find release-artifacts -type f -print0 | sort -z)
+          cp source-provenance/source-provenance.json release-stage/source-provenance.json
 
       - name: Generate consolidated checksums
         shell: bash
