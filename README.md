@@ -4,11 +4,11 @@ A public patch queue and patched binary distribution for OpenAI Codex.
 
 > Warning: Unofficial, not affiliated with OpenAI.
 
-[![License](https://img.shields.io/github/license/cowwoc/codex-fixes)](https://github.com/cowwoc/codex-fixes/blob/main/LICENSE)
-[![Upstream bugs](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/cowwoc/codex-fixes/main/docs/badges/upstream-bugs.json)](https://github.com/cowwoc/codex-fixes/tree/main/patches/openai/codex)
-[![Public fixes](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/cowwoc/codex-fixes/main/docs/badges/public-fixes.json)](https://github.com/cowwoc/codex-fixes/tree/main/patches)
+[![License](https://img.shields.io/github/license/codex-unleashed/codex-unleashed)](https://github.com/codex-unleashed/codex-unleashed/blob/main/LICENSE)
+[![Public patches](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/codex-unleashed/codex-unleashed/main/docs/badges/public-fixes.json)](https://github.com/codex-unleashed/codex-unleashed/tree/main/patches)
+[![Early-access patches](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/codex-unleashed/codex-unleashed/main/docs/badges/early-access.json)](https://codex-unleashed.com/)
 
-**[Get unstuck sooner →](https://cowwoc.github.io/codex-fixes/)**
+**[Get unstuck sooner →](https://codex-unleashed.com/)**
 
 ## Quickstart
 
@@ -66,12 +66,11 @@ Every release notes page lists:
 
 ## Versioning
 
-Patched releases append a patch release number to the upstream version:
+Patched releases add a vendor build number to the upstream version:
 
-- Upstream `1.3.6` -> patched `1.3.6.0`
-- Second patched rebuild -> `1.3.6.1`
+- Upstream `1.3.6` -> patched `1.3.6+25`
 
-The `.0` release is the first patched build for that upstream version. Higher suffixes are rebuilds or subsequent patched republish events for the same upstream version.
+The `+25` suffix identifies the vendor build. Build numbers are assigned by the release workflow and distinguish later patched builds based on the same upstream version.
 
 ## Policies
 
