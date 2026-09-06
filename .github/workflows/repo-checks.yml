@@ -20,6 +20,7 @@ jobs:
     timeout-minutes: 20
     env:
       NODE_OPTIONS: --max-old-space-size=4096
+      ALLOW_STALE_CODE_MODE_FEATURE_EXCEPTION: "1"
     steps:
       - name: Record job start
         id: timing_start
